@@ -29,6 +29,8 @@ set(BUNDLE_ID "com.sagittarian.vstwrapper")
 # Valid choices: AAX Unity VST VST3 AU AUv3 Standalone
 set(FORMATS Standalone VST3)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # For simplicity, the name of the CMake project is also the name of the target
 project(${PROJECT_NAME} VERSION ${CURRENT_VERSION})
 
