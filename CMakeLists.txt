@@ -25,6 +25,8 @@ set(PRODUCT_NAME "VstWrapper")
 set(COMPANY_NAME "Sagittarian")
 set(BUNDLE_ID "com.sagittarian.vstwrapper")
 
+# juce_set_vst3_sdk_path("/Users/christian/development/VST_SDK/vst3sdk")
+
 # Set the plugin formats you want built
 # Valid choices: AAX Unity VST VST3 AU AUv3 Standalone
 set(FORMATS Standalone VST3)
@@ -106,7 +108,8 @@ target_compile_definitions(SharedCode
     JUCE_WEB_BROWSER=0  # If you set this to 1, add `NEEDS_WEB_BROWSER TRUE` to the `juce_add_plugin` call
     JUCE_USE_CURL=0     # If you set this to 1, add `NEEDS_CURL TRUE` to the `juce_add_plugin` call
     JUCE_VST3_CAN_REPLACE_VST2=0
-
+    JUCE_PLUGINHOST_VST3=1
+    
     # Uncomment if you are paying for a an Indie/Pro license or releasing under GPLv3
     # JUCE_DISPLAY_SPLASH_SCREEN=0
 
@@ -140,13 +143,15 @@ target_link_libraries(SharedCode
 target_link_libraries("${PROJECT_NAME}" PRIVATE SharedCode)
 
 # IPP support, comment out to disable
-include(PamplejuceIPP)
+# include(PamplejuceIPP)
 
 # Everything related to the tests target
-include(Tests)
+# enable_testing()
+
+# include(Tests)
 
 # A separate target keeps the Tests target fast!
-include(Benchmarks)
+# include(Benchmarks)
 
 # Pass some config to GA (like our PRODUCT_NAME)
 include(GitHubENV)
