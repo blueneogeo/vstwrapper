@@ -1,2 +1,3 @@
 [keys.normal.backspace]
 b = ":sh cmake --build Builds --config Release"
+r = ":sh ./run.sh"
