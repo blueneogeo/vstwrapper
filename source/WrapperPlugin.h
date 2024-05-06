@@ -37,22 +37,21 @@
 
 #pragma once
 
-#include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_plugin_client/juce_audio_plugin_client.h>
+#include <juce_audio_processors/juce_audio_processors.h>
 
 //==============================================================================
-enum class EditorStyle { thisWindow, newWindow };
+enum class EditorStyle { thisWindow,
+    newWindow };
 
 class HostAudioProcessorImpl : public juce::AudioProcessor,
                                private juce::ChangeListener
 {
 public:
     HostAudioProcessorImpl()
-        : AudioProcessor (BusesProperties().withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
-                                           .withOutput ("Output", juce::AudioChannelSet::stereo(), true))
+        : AudioProcessor (BusesProperties().withInput ("Input", juce::AudioChannelSet::stereo(), true).withOutput ("Output", juce::AudioChannelSet::stereo(), true))
     {
-        appProperties.setStorageParameters ([&]
-        {
+        appProperties.setStorageParameters ([&] {
             juce::PropertiesFile::Options opt;
             opt.applicationName = getName();
             opt.commonToAllUsers = false;
@@ -76,9 +75,9 @@ public:
     bool isBusesLayoutSupported (const BusesLayout& layouts) const final
     {
         const auto& mainOutput = layouts.getMainOutputChannelSet();
-        const auto& mainInput  = layouts.getMainInputChannelSet();
+        const auto& mainInput = layouts.getMainInputChannelSet();
 
-        if (! mainInput.isDisabled() && mainInput != mainOutput)
+        if (!mainInput.isDisabled() && mainInput != mainOutput)
             return false;
 
         if (mainOutput.size() > 2)
@@ -118,32 +117,45 @@ public:
             inner->reset();
     }
 
-    // In this example, we don't actually pass any audio through the inner processor.
-    // In a 'real' plugin, we'd need to add some synchronisation to ensure that the inner
-    // plugin instance was never modified (deleted, replaced etc.) during a call to processBlock.
-    void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) final
+    void processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) final
     {
-        jassert (! isUsingDoublePrecision());
+        const juce::ScopedLock sl (innerMutex);
+
+        if (active && inner != nullptr)
+        {
+            // Process block for loaded VST plugin
+            inner->processBlock (buffer, midiMessages);
+        }
     }
 
-    void processBlock (juce::AudioBuffer<double>&, juce::MidiBuffer&) final
+    void processBlock (juce::AudioBuffer<double>& buffer, juce::MidiBuffer& midiMessages) final
     {
-        jassert (isUsingDoublePrecision());
+        const juce::ScopedLock sl (innerMutex);
+
+        if (active && inner != nullptr)
+        {
+            // Assuming your inner plugin supports double precision processing:
+            // Note that not all plugins support double precision; you may need a fallback or conversion.
+            jassert (isUsingDoublePrecision()); // This line ensures that double precision is supported.
+
+            // Create a temporary float buffer from the double buffer if needed or directly use as below:
+            inner->processBlock (buffer, midiMessages);
+        }
     }
 
-    bool hasEditor() const override                                   { return false; }
-    juce::AudioProcessorEditor* createEditor() override                     { return nullptr; }
+    bool hasEditor() const override { return false; }
+    juce::AudioProcessorEditor* createEditor() override { return nullptr; }
 
-    const juce::String getName() const final                                { return "HostPluginDemo"; }
-    bool acceptsMidi() const final                                    { return true; }
-    bool producesMidi() const final                                   { return true; }
-    double getTailLengthSeconds() const final                         { return 0.0; }
+    const juce::String getName() const final { return "HostPluginDemo"; }
+    bool acceptsMidi() const final { return true; }
+    bool producesMidi() const final { return true; }
+    double getTailLengthSeconds() const final { return 0.0; }
 
-    int getNumPrograms() final                                        { return 0; }
-    int getCurrentProgram() final                                     { return 0; }
-    void setCurrentProgram (int) final                                {}
-    const juce::String getProgramName (int) final                           { return "None"; }
-    void changeProgramName (int, const juce::String&) final                 {}
+    int getNumPrograms() final { return 0; }
+    int getCurrentProgram() final { return 0; }
+    void setCurrentProgram (int) final {}
+    const juce::String getProgramName (int) final { return "None"; }
+    void changeProgramName (int, const juce::String&) final {}
 
     void getStateInformation (juce::MemoryBlock& destData) final
     {
@@ -155,8 +167,7 @@ public:
         {
             xml.setAttribute (editorStyleTag, (int) editorStyle);
             xml.addChildElement (inner->getPluginDescription().createXml().release());
-            xml.addChildElement ([this]
-            {
+            xml.addChildElement ([this] {
                 juce::MemoryBlock innerState;
                 inner->getStateInformation (innerState);
 
@@ -185,8 +196,8 @@ public:
             innerState.fromBase64Encoding (xml->getChildElementAllSubText (innerStateTag, {}));
 
             setNewPlugin (pd,
-                          (EditorStyle) xml->getIntAttribute (editorStyleTag, 0),
-                          innerState);
+                (EditorStyle) xml->getIntAttribute (editorStyleTag, 0),
+                innerState);
         }
     }
 
@@ -194,13 +205,12 @@ public:
     {
         const juce::ScopedLock sl (innerMutex);
 
-        const auto callback = [this, where, mb] (std::unique_ptr<juce::AudioPluginInstance> instance, const juce::String& error)
-        {
+        const auto callback = [this, where, mb] (std::unique_ptr<juce::AudioPluginInstance> instance, const juce::String& error) {
             if (error.isNotEmpty())
             {
                 auto options = juce::MessageBoxOptions::makeOptionsOk (juce::MessageBoxIconType::WarningIcon,
-                                                                 "Plugin Load Failed",
-                                                                 error);
+                    "Plugin Load Failed",
+                    error);
                 messageBox = juce::AlertWindow::showScopedAsync (options, nullptr);
                 return;
             }
@@ -208,7 +218,7 @@ public:
             inner = std::move (instance);
             editorStyle = where;
 
-            if (inner != nullptr && ! mb.isEmpty())
+            if (inner != nullptr && !mb.isEmpty())
                 inner->setStateInformation (mb.getData(), (int) mb.getSize());
 
             // In a 'real' plugin, we'd also need to set the bus configuration of the inner plugin.
@@ -263,7 +273,7 @@ public:
 private:
     juce::CriticalSection innerMutex;
     std::unique_ptr<juce::AudioPluginInstance> inner;
-    EditorStyle editorStyle = EditorStyle{};
+    EditorStyle editorStyle = EditorStyle {};
     bool active = false;
     juce::ScopedMessageBox messageBox;
 
@@ -292,7 +302,7 @@ static void doLayout (juce::Component* main, juce::Component& bottom, int bottom
     grid.setGap (juce::Grid::Px { margin });
     grid.templateColumns = { juce::Grid::TrackInfo { juce::Grid::Fr { 1 } } };
     grid.templateRows = { juce::Grid::TrackInfo { juce::Grid::Fr { 1 } },
-                          juce::Grid::TrackInfo { juce::Grid::Px { bottomHeight }} };
+        juce::Grid::TrackInfo { juce::Grid::Px { bottomHeight } } };
     grid.items = { juce::GridItem { main }, juce::GridItem { bottom }.withMargin ({ 0, margin, margin, margin }) };
     grid.performLayout (bounds);
 }
@@ -302,8 +312,8 @@ class PluginLoaderComponent final : public juce::Component
 public:
     template <typename Callback>
     PluginLoaderComponent (juce::AudioPluginFormatManager& manager,
-                           juce::KnownPluginList& list,
-                           Callback&& callback)
+        juce::KnownPluginList& list,
+        Callback&& callback)
         : pluginListComponent (manager, list, {}, {})
     {
         pluginListComponent.getTableListBox().setMultipleSelectionEnabled (false);
@@ -311,10 +321,8 @@ public:
         addAndMakeVisible (pluginListComponent);
         addAndMakeVisible (buttons);
 
-        const auto getCallback = [this, &list, cb = std::forward<Callback> (callback)] (EditorStyle style)
-        {
-            return [this, &list, cb, style]
-            {
+        const auto getCallback = [this, &list, cb = std::forward<Callback> (callback)] (EditorStyle style) {
+            return [this, &list, cb, style] {
                 const auto index = pluginListComponent.getTableListBox().getSelectedRow();
                 const auto& types = list.getTypes();
 
@@ -324,7 +332,7 @@ public:
         };
 
         buttons.thisWindowButton.onClick = getCallback (EditorStyle::thisWindow);
-        buttons.newWindowButton .onClick = getCallback (EditorStyle::newWindow);
+        buttons.newWindowButton.onClick = getCallback (EditorStyle::newWindow);
     }
 
     void resized() override
@@ -350,7 +358,7 @@ private:
             vertical.autoFlow = juce::Grid::AutoFlow::row;
             vertical.setGap (juce::Grid::Px { margin });
             vertical.autoRows = vertical.autoColumns = juce::Grid::TrackInfo { juce::Grid::Fr { 1 } };
-            vertical.items.insertMultiple (0, juce::GridItem{}, 2);
+            vertical.items.insertMultiple (0, juce::GridItem {}, 2);
             vertical.performLayout (getLocalBounds());
 
             label.setBounds (vertical.items[0].currentBounds.toNearestInt());
@@ -360,7 +368,7 @@ private:
             grid.setGap (juce::Grid::Px { margin });
             grid.autoRows = grid.autoColumns = juce::Grid::TrackInfo { juce::Grid::Fr { 1 } };
             grid.items = { juce::GridItem { thisWindowButton },
-                           juce::GridItem { newWindowButton } };
+                juce::GridItem { newWindowButton } };
 
             grid.performLayout (vertical.items[1].currentBounds.toNearestInt());
         }
@@ -440,12 +448,11 @@ public:
         : AudioProcessorEditor (owner),
           hostProcessor (owner),
           loader (owner.pluginFormatManager,
-                  owner.pluginList,
-                  [&owner] (const juce::PluginDescription& pd,
-                            EditorStyle editorStyle)
-                  {
-                      owner.setNewPlugin (pd, editorStyle);
-                  }),
+              owner.pluginList,
+              [&owner] (const juce::PluginDescription& pd,
+                  EditorStyle editorStyle) {
+                  owner.setNewPlugin (pd, editorStyle);
+              }),
           scopedCallback (owner.pluginChanged, [this] { pluginChanged(); })
     {
         setSize (500, 500);
@@ -485,8 +492,7 @@ public:
         currentScaleFactor = scale;
         AudioProcessorEditor::setScaleFactor (scale);
 
-        [[maybe_unused]] const auto posted = juce::MessageManager::callAsync ([ref = SafePointer<HostAudioProcessorEditor> (this), scale]
-        {
+        [[maybe_unused]] const auto posted = juce::MessageManager::callAsync ([ref = SafePointer<HostAudioProcessorEditor> (this), scale] {
             if (auto* r = ref.getComponent())
                 if (auto* e = r->currentEditorComponent)
                     e->setScaleFactor (scale);
@@ -498,13 +504,12 @@ public:
 private:
     void pluginChanged()
     {
-        loader.setVisible (! hostProcessor.isPluginLoaded());
+        loader.setVisible (!hostProcessor.isPluginLoaded());
         closeButton.setVisible (hostProcessor.isPluginLoaded());
 
         if (hostProcessor.isPluginLoaded())
         {
-            auto editorComponent = std::make_unique<PluginEditorComponent> (hostProcessor.createInnerEditor(), [this]
-            {
+            auto editorComponent = std::make_unique<PluginEditorComponent> (hostProcessor.createInnerEditor(), [this] {
                 [[maybe_unused]] const auto posted = juce::MessageManager::callAsync ([this] { clearPlugin(); });
                 jassert (posted);
             });
@@ -512,8 +517,7 @@ private:
             editorComponent->setScaleFactor (currentScaleFactor);
             currentEditorComponent = editorComponent.get();
 
-            editor = [&]() -> std::unique_ptr<Component>
-            {
+            editor = [&]() -> std::unique_ptr<Component> {
                 switch (hostProcessor.getEditorStyle())
                 {
                     case EditorStyle::thisWindow:
@@ -567,5 +571,3 @@ public:
     bool hasEditor() const override { return true; }
     juce::AudioProcessorEditor* createEditor() override { return new HostAudioProcessorEditor (*this); }
 };
-
-
