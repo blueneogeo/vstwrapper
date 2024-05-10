@@ -1,4 +1,4 @@
-#include "WrapperPlugin.h"
+#include "HostAudioProcessorEditor.h"
 
 HostAudioProcessorImpl::HostAudioProcessorImpl()
     : AudioProcessor (BusesProperties().withInput ("Input", juce::AudioChannelSet::stereo(), true).withOutput ("Output", juce::AudioChannelSet::stereo(), true))
