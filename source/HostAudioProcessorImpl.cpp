@@ -1,4 +1,6 @@
 #include "HostAudioProcessorImpl.h"
+#include "EditorTools.h"
+#include "juce_core/juce_core.h"
 
 HostAudioProcessorImpl::HostAudioProcessorImpl()
     : AudioProcessor (BusesProperties().withInput ("Input", juce::AudioChannelSet::stereo(), true).withOutput ("Output", juce::AudioChannelSet::stereo(), true))
@@ -19,6 +21,21 @@ HostAudioProcessorImpl::HostAudioProcessorImpl()
 
     if (auto savedPluginList = appProperties.getUserSettings()->getXmlValue ("pluginList"))
         pluginList.recreateFromXml (*savedPluginList);
+
+    // load the parameters from the config
+    if (auto parametersEl = appProperties.getUserSettings()->getXmlValue ("params"))
+    {
+        for (int i = 0; i < parametersEl->getNumChildElements(); i++)
+        {
+            auto parameterEl = parametersEl->getChildElement (i);
+            auto name = parameterEl->getStringAttribute ("name");
+            auto label = parameterEl->getStringAttribute ("label");
+            // auto min = parameterEl->getDoubleAttribute("min");
+            // auto max = parameterEl->getDoubleAttribute("max");
+            auto def = parameterEl->getDoubleAttribute ("default");
+            addParameter (new juce::AudioParameterFloat (i, name, juce::NormalisableRange<float> (static_cast<float> (0), static_cast<float> (1)), static_cast<float> (def)));
+        }
+    }
 
     juce::MessageManagerLock lock;
     pluginList.addChangeListener (this);
@@ -54,6 +71,40 @@ void HostAudioProcessorImpl::prepareToPlay (double sr, int bs)
 void HostAudioProcessorImpl::releaseResources()
 {
     const juce::ScopedLock sl (innerMutex);
+
+    if (auto settings = appProperties.getUserSettings())
+    {
+        if (inner != nullptr)
+        {
+            // auto parametersEl = new juce::XmlElement ("params");
+            // for (int i = 0; i < parametersEl->getNumChildElements(); i++)
+            // {
+            //     auto parameterEl = parametersEl->getChildElement (i);
+            //     auto name = parameterEl->getStringAttribute ("name");
+            //     auto label = parameterEl->getStringAttribute ("label");
+            //     // auto min = parameterEl->getDoubleAttribute("min");
+            //     // auto max = parameterEl->getDoubleAttribute("max");
+            //     auto def = parameterEl->getDoubleAttribute ("default");
+            //     addParameter (new juce::AudioParameterFloat (name, label, juce::NormalisableRange<float> (static_cast<float> (0), static_cast<float> (100)), static_cast<float> (def)));
+            // }
+            auto params = inner->getParameters();
+            auto paramsEl = new juce::XmlElement ("params");
+
+            for (int i = 0; i < params.size(); i++)
+            {
+                auto param = params[i];
+                auto paramEl = new juce::XmlElement ("param");
+                paramEl->setAttribute ("name", param->getName (128));
+                paramEl->setAttribute ("label", param->getLabel());
+                paramEl->setAttribute ("default", param->getDefaultValue());
+                paramEl->setAttribute ("steps", param->getNumSteps());
+                paramsEl->addChildElement (paramEl);
+            }
+
+            settings->setValue ("params", paramsEl);
+            settings->saveIfNeeded();
+        }
+    }
 
     active = false;
 
@@ -104,7 +155,9 @@ void HostAudioProcessorImpl::getStateInformation (juce::MemoryBlock& destData)
     if (inner != nullptr)
     {
         xml.setAttribute (editorStyleTag, (int) editorStyle);
+
         xml.addChildElement (inner->getPluginDescription().createXml().release());
+
         xml.addChildElement ([this] {
             juce::MemoryBlock innerState;
             inner->getStateInformation (innerState);
@@ -113,6 +166,24 @@ void HostAudioProcessorImpl::getStateInformation (juce::MemoryBlock& destData)
             stateNode->addTextElement (innerState.toBase64Encoding());
             return stateNode.release();
         }());
+
+        // auto innerParams = inner->getParameters();
+        // auto paramsEl = new juce::XmlElement("params");
+
+        // for (int p = 0; p < innerParams.size(); p++)
+        // {
+        //     auto param = innerParams[p];
+        //     auto childEl = new juce::XmlElement ("param");
+        //     childEl->setAttribute("name", param->getName(128));
+        //     childEl->setAttribute("value", (double) param->getValue());
+        //     paramsEl->addChildElement(childEl);
+        // }
+
+        // xml.addChildElement(paramsEl);
+        // appProperties.getUserSettings()->setValue("params", paramsEl);
+        // appProperties.getUserSettings()->saveIfNeeded();
+
+        // save the parameters in the config
     }
 
     const auto text = xml.toString();
@@ -137,6 +208,8 @@ void HostAudioProcessorImpl::setStateInformation (const void* data, int sizeInBy
             (EditorStyle) xml->getIntAttribute (editorStyleTag, 0),
             innerState);
     }
+
+    p1->setValueNotifyingHost (0.8f);
 }
 
 void HostAudioProcessorImpl::setNewPlugin (const juce::PluginDescription& pd, EditorStyle where, const juce::MemoryBlock& mb)
@@ -173,6 +246,9 @@ void HostAudioProcessorImpl::setNewPlugin (const juce::PluginDescription& pd, Ed
         {
             inner->setRateAndBufferSizeDetails (getSampleRate(), getBlockSize());
             inner->prepareToPlay (getSampleRate(), getBlockSize());
+
+            // get all the parameters from the inner plugin
+            pluginParams = inner->getParameters();
         }
 
         juce::NullCheckedInvocation::invoke (pluginChanged);
@@ -186,6 +262,14 @@ void HostAudioProcessorImpl::clearPlugin()
     const juce::ScopedLock sl (innerMutex);
 
     inner = nullptr;
+    pluginParams = nullptr;
+
+    if (auto settings = appProperties.getUserSettings())
+    {
+        settings->removeValue ("params");
+        settings->saveIfNeeded();
+    }
+
     juce::NullCheckedInvocation::invoke (pluginChanged);
 }
 

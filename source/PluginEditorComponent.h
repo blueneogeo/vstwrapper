@@ -1,6 +1,7 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include "EditorTools.h"
 
 class PluginEditorComponent final : public juce::Component
 {
@@ -27,5 +28,5 @@ private:
     static constexpr auto buttonHeight = 40;
 
     std::unique_ptr<juce::AudioProcessorEditor> editor;
-    juce::TextButton closeButton { "Close Plugin" };
+    juce::TextButton closeButton { getPluginPath() };
 };

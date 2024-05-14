@@ -1,5 +1,8 @@
 #pragma once
 
+#include <mach-o/dyld.h>
+#include <vector>
+
 #include <juce_audio_plugin_client/juce_audio_plugin_client.h>
 #include <juce_audio_processors/juce_audio_processors.h>
 
@@ -20,4 +23,17 @@ static void doLayout (juce::Component* main, juce::Component& bottom, int bottom
         juce::Grid::TrackInfo { juce::Grid::Px { bottomHeight } } };
     grid.items = { juce::GridItem { main }, juce::GridItem { bottom }.withMargin ({ 0, margin, margin, margin }) };
     grid.performLayout (bounds);
+}
+
+
+static std::string getPluginPath() {
+    uint32_t size = 1024;
+    std::vector<char> buffer(size);
+    
+    if (_NSGetExecutablePath(buffer.data(), &size) == -1) {
+        buffer.resize(size);
+        _NSGetExecutablePath(buffer.data(), &size);
+    }
+    
+    return std::string(buffer.data());
 }

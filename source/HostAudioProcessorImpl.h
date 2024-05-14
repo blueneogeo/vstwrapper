@@ -1,8 +1,8 @@
 #pragma once
 
+#include "EditorTools.h"
 #include <juce_audio_plugin_client/juce_audio_plugin_client.h>
 #include <juce_audio_processors/juce_audio_processors.h>
-#include "EditorTools.h"
 
 class HostAudioProcessorImpl : public juce::AudioProcessor,
                                private juce::ChangeListener
@@ -26,7 +26,7 @@ public:
 
     juce::AudioProcessorEditor* createEditor() override { return nullptr; }
 
-    const juce::String getName() const final { return "HostPluginDemo"; }
+    const juce::String getName() const final { return "Electra One"; }
 
     bool acceptsMidi() const final { return true; }
 
@@ -61,7 +61,9 @@ public:
     juce::ApplicationProperties appProperties;
     juce::AudioPluginFormatManager pluginFormatManager;
     juce::KnownPluginList pluginList;
+    // pluginChanged is a callback to inform the HostAudioProcessorEditor
     std::function<void()> pluginChanged;
+    juce::Array<juce::AudioProcessorParameter*> pluginParams;
 
 private:
     juce::CriticalSection innerMutex;
@@ -74,4 +76,6 @@ private:
     static constexpr const char* editorStyleTag = "editor_style";
 
     void changeListenerCallback (juce::ChangeBroadcaster* source) final;
+
+    juce::AudioParameterFloat* p1 = new juce::AudioParameterFloat("p1", "P1", 0, 1, 0.5);
 };
