@@ -22,7 +22,7 @@ HostAudioProcessorImpl::HostAudioProcessorImpl()
     if (auto savedPluginList = appProperties.getUserSettings()->getXmlValue ("pluginList"))
         pluginList.recreateFromXml (*savedPluginList);
 
-    // load the parameters from the config
+    // load the parameters from the config if available
     if (auto parametersEl = appProperties.getUserSettings()->getXmlValue ("params"))
     {
         for (int i = 0; i < parametersEl->getNumChildElements(); i++)
@@ -38,7 +38,6 @@ HostAudioProcessorImpl::HostAudioProcessorImpl()
     }
 
     juce::MessageManagerLock lock;
-    pluginList.addChangeListener (this);
 }
 
 bool HostAudioProcessorImpl::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -72,21 +71,11 @@ void HostAudioProcessorImpl::releaseResources()
 {
     const juce::ScopedLock sl (innerMutex);
 
+    // Save all parameters, so we can see them the next time the processor is loaded
     if (auto settings = appProperties.getUserSettings())
     {
         if (inner != nullptr)
         {
-            // auto parametersEl = new juce::XmlElement ("params");
-            // for (int i = 0; i < parametersEl->getNumChildElements(); i++)
-            // {
-            //     auto parameterEl = parametersEl->getChildElement (i);
-            //     auto name = parameterEl->getStringAttribute ("name");
-            //     auto label = parameterEl->getStringAttribute ("label");
-            //     // auto min = parameterEl->getDoubleAttribute("min");
-            //     // auto max = parameterEl->getDoubleAttribute("max");
-            //     auto def = parameterEl->getDoubleAttribute ("default");
-            //     addParameter (new juce::AudioParameterFloat (name, label, juce::NormalisableRange<float> (static_cast<float> (0), static_cast<float> (100)), static_cast<float> (def)));
-            // }
             auto params = inner->getParameters();
             auto paramsEl = new juce::XmlElement ("params");
 
@@ -128,6 +117,19 @@ void HostAudioProcessorImpl::processBlock (juce::AudioBuffer<float>& buffer, juc
     {
         // Process block for loaded VST plugin
         inner->processBlock (buffer, midiMessages);
+
+        // Run parameters when processing block. Probably very bad idea, runs way too fast!
+        // At least check if the values have changed!
+        //
+        // juce::MessageManager::callAsync ([this]() {
+        //     for (auto param : getParameters())
+        //     {
+        //         if (auto* p = dynamic_cast<juce::RangedAudioParameter*> (param))
+        //         {
+        //             p->sendValueChangedMessageToListeners (p->getValue());
+        //         }
+        //     }
+        // });
     }
 }
 
@@ -143,6 +145,16 @@ void HostAudioProcessorImpl::processBlock (juce::AudioBuffer<double>& buffer, ju
 
         // Create a temporary float buffer from the double buffer if needed or directly use as below:
         inner->processBlock (buffer, midiMessages);
+
+        // juce::MessageManager::callAsync ([this]() {
+        //     for (auto param : getParameters())
+        //     {
+        //         if (auto* p = dynamic_cast<juce::RangedAudioParameter*> (param))
+        //         {
+        //             p->sendValueChangedMessageToListeners (p->getValue());
+        //         }
+        //     }
+        // });
     }
 }
 
@@ -166,24 +178,6 @@ void HostAudioProcessorImpl::getStateInformation (juce::MemoryBlock& destData)
             stateNode->addTextElement (innerState.toBase64Encoding());
             return stateNode.release();
         }());
-
-        // auto innerParams = inner->getParameters();
-        // auto paramsEl = new juce::XmlElement("params");
-
-        // for (int p = 0; p < innerParams.size(); p++)
-        // {
-        //     auto param = innerParams[p];
-        //     auto childEl = new juce::XmlElement ("param");
-        //     childEl->setAttribute("name", param->getName(128));
-        //     childEl->setAttribute("value", (double) param->getValue());
-        //     paramsEl->addChildElement(childEl);
-        // }
-
-        // xml.addChildElement(paramsEl);
-        // appProperties.getUserSettings()->setValue("params", paramsEl);
-        // appProperties.getUserSettings()->saveIfNeeded();
-
-        // save the parameters in the config
     }
 
     const auto text = xml.toString();
@@ -249,6 +243,9 @@ void HostAudioProcessorImpl::setNewPlugin (const juce::PluginDescription& pd, Ed
 
             // get all the parameters from the inner plugin
             pluginParams = inner->getParameters();
+
+            // listen to inner plugin changes
+            inner->addListener (this);
         }
 
         juce::NullCheckedInvocation::invoke (pluginChanged);
@@ -257,10 +254,45 @@ void HostAudioProcessorImpl::setNewPlugin (const juce::PluginDescription& pd, Ed
     pluginFormatManager.createPluginInstanceAsync (pd, getSampleRate(), getBlockSize(), callback);
 }
 
+void HostAudioProcessorImpl::audioProcessorParameterChanged (juce::AudioProcessor* processor,
+    int parameterIndex,
+    float newValue)
+{
+    auto params = this->getParameters();
+    if (parameterIndex < params.size() && !isUpdatingParam)
+    {
+        isUpdatingParam = true;
+        
+        // Ensure this code runs on the message thread
+        juce::MessageManager::callAsync ([this, params, parameterIndex, newValue]() {
+            auto* param = params[parameterIndex];
+                                                    
+            param->beginChangeGesture();
+            // logToFile ("sending param change " + juce::String (parameterIndex) + " - " + juce::String (newValue));
+
+            // Notify host about the change.
+            // param->setValue (newValue);
+            param->setValueNotifyingHost (newValue);
+            // param->sendValueChangedMessageToListeners (newValue);
+
+            param->endChangeGesture();
+
+            // Verify if the value was set correctly.
+            float updatedValue = param->getValue();
+            logToFile ("sending param " + juce::String(param->getName(128))+ " - " + juce::String (updatedValue));
+
+            isUpdatingParam = false; // Ensure this flag is reset within the lambda
+        });
+    }
+}
+
+void HostAudioProcessorImpl::audioProcessorChanged (AudioProcessor* processor, const ChangeDetails& details) {}
+
 void HostAudioProcessorImpl::clearPlugin()
 {
     const juce::ScopedLock sl (innerMutex);
 
+    inner->removeListener (this);
     inner = nullptr;
     pluginParams = nullptr;
 
@@ -272,6 +304,8 @@ void HostAudioProcessorImpl::clearPlugin()
 
     juce::NullCheckedInvocation::invoke (pluginChanged);
 }
+
+void HostAudioProcessorImpl::globalFocusChanged (juce::Component* focusedComponent) {}
 
 bool HostAudioProcessorImpl::isPluginLoaded() const
 {

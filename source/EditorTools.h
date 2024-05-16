@@ -37,3 +37,11 @@ static std::string getPluginPath() {
     
     return std::string(buffer.data());
 }
+
+static void logToFile(const juce::String& message)
+{
+    juce::File logFile = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+                         .getChildFile("ElectraLog.txt");
+
+    logFile.appendText(message + "\n");
+}

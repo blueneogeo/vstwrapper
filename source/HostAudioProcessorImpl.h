@@ -1,17 +1,27 @@
 #pragma once
 
 #include "EditorTools.h"
+#include "juce_gui_basics/juce_gui_basics.h"
 #include <juce_audio_plugin_client/juce_audio_plugin_client.h>
 #include <juce_audio_processors/juce_audio_processors.h>
 
 class HostAudioProcessorImpl : public juce::AudioProcessor,
-                               private juce::ChangeListener
+                               public juce::AudioProcessorListener,
+                               private juce::FocusChangeListener
 {
 public:
     HostAudioProcessorImpl();
 
     bool isBusesLayoutSupported (const BusesLayout& layouts) const final;
 
+    void audioProcessorParameterChanged (juce::AudioProcessor* processor,
+        int parameterIndex,
+        float newValue) override;
+
+    void audioProcessorChanged (AudioProcessor* processor, const ChangeDetails& details) override;
+    
+    void globalFocusChanged (juce::Component* focusedComponent) override;
+    
     void prepareToPlay (double sr, int bs) final;
 
     void releaseResources() final;
@@ -66,6 +76,7 @@ public:
     juce::Array<juce::AudioProcessorParameter*> pluginParams;
 
 private:
+    bool isUpdatingParam = false;
     juce::CriticalSection innerMutex;
     std::unique_ptr<juce::AudioPluginInstance> inner;
     EditorStyle editorStyle = EditorStyle {};
@@ -75,7 +86,7 @@ private:
     static constexpr const char* innerStateTag = "inner_state";
     static constexpr const char* editorStyleTag = "editor_style";
 
-    void changeListenerCallback (juce::ChangeBroadcaster* source) final;
+    void changeListenerCallback (juce::ChangeBroadcaster* source);
 
-    juce::AudioParameterFloat* p1 = new juce::AudioParameterFloat("p1", "P1", 0, 1, 0.5);
+    juce::AudioParameterFloat* p1 = new juce::AudioParameterFloat ("p1", "P1", 0, 1, 0.5);
 };
