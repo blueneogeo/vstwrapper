@@ -66,14 +66,7 @@ void HostAudioProcessorEditor::pluginChanged()
     if (hostProcessor.isPluginLoaded())
     {
         auto editorComponent = std::make_unique<PluginEditorComponent> (hostProcessor.createInnerEditor(), [this] {
-            // [[maybe_unused]] const auto posted = juce::MessageManager::callAsync ([this] { clearPlugin(); });
-            // jassert (posted);
-            [[maybe_unused]] const auto posted = juce::MessageManager::callAsync ([this] {
-                auto param1 = this->hostProcessor.pluginParams[0];
-                param1->beginChangeGesture();
-                param1->setValueNotifyingHost (0.34f);
-                param1->endChangeGesture();
-            });
+            [[maybe_unused]] const auto posted = juce::MessageManager::callAsync ([this] { clearPlugin(); });
             jassert (posted);
         });
 
