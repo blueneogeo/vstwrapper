@@ -1,5 +1,6 @@
 #include "HostAudioProcessorImpl.h"
 #include "EditorTools.h"
+#include "ParameterChangeListener.h"
 #include "juce_core/juce_core.h"
 
 HostAudioProcessorImpl::HostAudioProcessorImpl()
@@ -33,7 +34,24 @@ HostAudioProcessorImpl::HostAudioProcessorImpl()
             // auto min = parameterEl->getDoubleAttribute("min");
             // auto max = parameterEl->getDoubleAttribute("max");
             auto def = parameterEl->getDoubleAttribute ("default");
-            addParameter (new juce::AudioParameterFloat (i, name, juce::NormalisableRange<float> (static_cast<float> (0), static_cast<float> (1)), static_cast<float> (def)));
+
+            auto param = new juce::AudioParameterFloat (i, name, juce::NormalisableRange<float> (static_cast<float> (0), static_cast<float> (1)), static_cast<float> (def));
+
+            // inform the wrapped plugin of external changes coming from the VST host
+            auto newListener = new ParameterChangeListener(
+                [&] (int index, float newValue) {
+                    if(inner != nullptr && !isUpdatingParam) {
+                        isUpdatingParam = true;
+                        auto innerParam = inner->getParameters()[index];
+                        innerParam->beginChangeGesture();
+                        innerParam->setValue(newValue);
+                        innerParam->endChangeGesture();
+                        isUpdatingParam = false;
+                    }
+                });
+
+            param->addListener (newListener);
+            addParameter (param);
         }
     }
 
@@ -262,11 +280,11 @@ void HostAudioProcessorImpl::audioProcessorParameterChanged (juce::AudioProcesso
     if (parameterIndex < params.size() && !isUpdatingParam)
     {
         isUpdatingParam = true;
-        
+
         // Ensure this code runs on the message thread
         juce::MessageManager::callAsync ([this, params, parameterIndex, newValue]() {
             auto* param = params[parameterIndex];
-                                                    
+
             param->beginChangeGesture();
             // logToFile ("sending param change " + juce::String (parameterIndex) + " - " + juce::String (newValue));
 
@@ -279,7 +297,7 @@ void HostAudioProcessorImpl::audioProcessorParameterChanged (juce::AudioProcesso
 
             // Verify if the value was set correctly.
             float updatedValue = param->getValue();
-            logToFile ("sending param " + juce::String(param->getName(128))+ " - " + juce::String (updatedValue));
+            logToFile ("sending param " + juce::String (param->getName (128)) + " - " + juce::String (updatedValue));
 
             isUpdatingParam = false; // Ensure this flag is reset within the lambda
         });
