@@ -1,10 +1,12 @@
 #pragma once
 
+#include "MidiTools.h"
+#include "EditorTools.h"
+#include "LookAndFeel.h"
 #include "juce_gui_basics/juce_gui_basics.h"
 #include <juce_audio_devices/juce_audio_devices.h>
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <memory>
-#include "LookAndFeel.h"
 
 class PluginEditorComponent final : public juce::Component
 {
@@ -13,7 +15,7 @@ public:
     PluginEditorComponent (std::unique_ptr<juce::AudioProcessorEditor> editorIn, Callback&& onClose)
         : editor (std::move (editorIn))
     {
-        lookAndFeel = std::make_unique<CustomLookAndFeel>(12.0f);
+        lookAndFeel = std::make_unique<CustomLookAndFeel> (12.0f);
         audioDeviceManager.initialise (2, 2, nullptr, true);
 
         auto midiInputs = juce::MidiInput::getAvailableDevices();
@@ -36,17 +38,24 @@ public:
             midiOutputSelector.addItem (deviceName, i + 1);
         }
 
-        midiInputSelector.setLookAndFeel(lookAndFeel.get());
-        midiOutputSelector.setLookAndFeel(lookAndFeel.get());
-        closeButton.setLookAndFeel(lookAndFeel.get());
-        
+        midiInputSelector.setLookAndFeel (lookAndFeel.get());
+        midiOutputSelector.setLookAndFeel (lookAndFeel.get());
+        testButton.setLookAndFeel (lookAndFeel.get());
+        closeButton.setLookAndFeel (lookAndFeel.get());
+
         addAndMakeVisible (editor.get());
         addAndMakeVisible (midiInputSelector);
         addAndMakeVisible (midiOutputSelector);
+        addAndMakeVisible (testButton);
         addAndMakeVisible (closeButton);
 
         childBoundsChanged (editor.get());
 
+        testButton.onClick = [this] {
+            auto midiOutput = juce::MidiOutput::openDevice (1);
+            sendNRPN (midiOutput.get(), 1, 2000, 8000);
+            logToFile ("test pressed");
+        };
         closeButton.onClick = std::forward<Callback> (onClose);
 
         midiInputSelector.onChange = [this] { midiInputChanged(); };
@@ -63,6 +72,8 @@ public:
 
     void midiOutputChanged();
 
+    // void sendNRPN (juce::MidiOutput* midiOutput, int channel, int parameter, int value);
+
 private:
     static constexpr auto toolbarHeight = 20;
 
@@ -71,5 +82,6 @@ private:
     juce::ComboBox midiInputSelector;
     juce::ComboBox midiOutputSelector;
     juce::TextButton closeButton { "Eject" };
+    juce::TextButton testButton { "Test" };
     std::unique_ptr<CustomLookAndFeel> lookAndFeel;
 };

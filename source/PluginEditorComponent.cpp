@@ -19,6 +19,10 @@ void PluginEditorComponent::resized()
     midiInputSelector.setBounds(inner.removeFromLeft(width));
     inner.removeFromLeft(7);
     midiOutputSelector.setBounds(inner.removeFromLeft(width));
+
+    inner.removeFromLeft(7);
+    testButton.setBounds(inner.removeFromLeft(50));
+    
     closeButton.setBounds(inner.removeFromRight(50));
 
     if(editor) {
@@ -41,9 +45,11 @@ void PluginEditorComponent::midiInputChanged()
 {
     auto selectedIndex = midiInputSelector.getSelectedItemIndex();
 
-    if (selectedIndex >= 0)
+    if (selectedIndex >= 0) {
         DBG ("MIDI Input selected: " + juce::MidiInput::getAvailableDevices()[selectedIndex].name);
-
+        if(editor) {
+        }
+    }
     // Handle MIDI input change logic here...
 }
 

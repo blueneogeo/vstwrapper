@@ -1,6 +1,7 @@
 #include "HostAudioProcessorImpl.h"
 #include "EditorTools.h"
 #include "ParameterChangeListener.h"
+#include "juce_audio_devices/juce_audio_devices.h"
 #include "juce_core/juce_core.h"
 
 HostAudioProcessorImpl::HostAudioProcessorImpl()
@@ -348,3 +349,4 @@ void HostAudioProcessorImpl::changeListenerCallback (juce::ChangeBroadcaster* so
         appProperties.saveIfNeeded();
     }
 }
+

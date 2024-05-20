@@ -4,6 +4,7 @@
 #include "juce_gui_basics/juce_gui_basics.h"
 #include <juce_audio_plugin_client/juce_audio_plugin_client.h>
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_audio_devices/juce_audio_devices.h>
 
 class HostAudioProcessorImpl : public juce::AudioProcessor,
                                public juce::AudioProcessorListener,
@@ -82,6 +83,8 @@ private:
     EditorStyle editorStyle = EditorStyle {};
     bool active = false;
     juce::ScopedMessageBox messageBox;
+    std::unique_ptr<juce::MidiInput> midiInput;
+    std::unique_ptr<juce::MidiOutput> midiOut;
 
     static constexpr const char* innerStateTag = "inner_state";
     static constexpr const char* editorStyleTag = "editor_style";
