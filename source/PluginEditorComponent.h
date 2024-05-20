@@ -1,5 +1,6 @@
 #pragma once
 
+#include "HostAudioProcessorImpl.h"
 #include "MidiTools.h"
 #include "EditorTools.h"
 #include "LookAndFeel.h"
@@ -12,8 +13,8 @@ class PluginEditorComponent final : public juce::Component
 {
 public:
     template <typename Callback>
-    PluginEditorComponent (std::unique_ptr<juce::AudioProcessorEditor> editorIn, Callback&& onClose)
-        : editor (std::move (editorIn))
+    PluginEditorComponent (HostAudioProcessorImpl* hostAudioProcessor, std::unique_ptr<juce::AudioProcessorEditor> editorIn, Callback&& onClose)
+        : processor(hostAudioProcessor), editor (std::move (editorIn))
     {
         lookAndFeel = std::make_unique<CustomLookAndFeel> (12.0f);
         audioDeviceManager.initialise (2, 2, nullptr, true);
@@ -75,6 +76,9 @@ public:
     // void sendNRPN (juce::MidiOutput* midiOutput, int channel, int parameter, int value);
 
 private:
+
+    HostAudioProcessorImpl* processor;
+    
     static constexpr auto toolbarHeight = 20;
 
     juce::AudioDeviceManager audioDeviceManager;

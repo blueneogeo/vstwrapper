@@ -221,8 +221,6 @@ void HostAudioProcessorImpl::setStateInformation (const void* data, int sizeInBy
             (EditorStyle) xml->getIntAttribute (editorStyleTag, 0),
             innerState);
     }
-
-    p1->setValueNotifyingHost (0.8f);
 }
 
 void HostAudioProcessorImpl::setNewPlugin (const juce::PluginDescription& pd, EditorStyle where, const juce::MemoryBlock& mb)
@@ -350,3 +348,10 @@ void HostAudioProcessorImpl::changeListenerCallback (juce::ChangeBroadcaster* so
     }
 }
 
+    void HostAudioProcessorImpl::handleIncomingMidiMessage (juce::MidiInput* source,
+                                            const juce::MidiMessage& message) {}
+
+    void HostAudioProcessorImpl::handlePartialSysexMessage (juce::MidiInput* source,
+                                            const uint* messageData,
+                                            int numBytesSoFar,
+                                            double timestamp) {}

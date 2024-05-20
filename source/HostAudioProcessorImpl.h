@@ -2,13 +2,14 @@
 
 #include "EditorTools.h"
 #include "juce_gui_basics/juce_gui_basics.h"
+#include <juce_audio_devices/juce_audio_devices.h>
 #include <juce_audio_plugin_client/juce_audio_plugin_client.h>
 #include <juce_audio_processors/juce_audio_processors.h>
-#include <juce_audio_devices/juce_audio_devices.h>
 
 class HostAudioProcessorImpl : public juce::AudioProcessor,
                                public juce::AudioProcessorListener,
-                               private juce::FocusChangeListener
+                               private juce::FocusChangeListener,
+                               public juce::MidiInputCallback
 {
 public:
     HostAudioProcessorImpl();
@@ -19,10 +20,18 @@ public:
         int parameterIndex,
         float newValue) override;
 
+    void handleIncomingMidiMessage (juce::MidiInput* source,
+        const juce::MidiMessage& message);
+
+    void handlePartialSysexMessage (juce::MidiInput* source,
+        const uint* messageData,
+        int numBytesSoFar,
+        double timestamp);
+
     void audioProcessorChanged (AudioProcessor* processor, const ChangeDetails& details) override;
-    
+
     void globalFocusChanged (juce::Component* focusedComponent) override;
-    
+
     void prepareToPlay (double sr, int bs) final;
 
     void releaseResources() final;
@@ -75,6 +84,9 @@ public:
     // pluginChanged is a callback to inform the HostAudioProcessorEditor
     std::function<void()> pluginChanged;
     juce::Array<juce::AudioProcessorParameter*> pluginParams;
+    std::unique_ptr<juce::MidiInput> midiInput;
+    std::unique_ptr<juce::MidiOutput> midiOutput;
+    juce::CriticalSection midiInputLock;
 
 private:
     bool isUpdatingParam = false;
@@ -83,13 +95,9 @@ private:
     EditorStyle editorStyle = EditorStyle {};
     bool active = false;
     juce::ScopedMessageBox messageBox;
-    std::unique_ptr<juce::MidiInput> midiInput;
-    std::unique_ptr<juce::MidiOutput> midiOut;
 
     static constexpr const char* innerStateTag = "inner_state";
     static constexpr const char* editorStyleTag = "editor_style";
 
     void changeListenerCallback (juce::ChangeBroadcaster* source);
-
-    juce::AudioParameterFloat* p1 = new juce::AudioParameterFloat ("p1", "P1", 0, 1, 0.5);
 };
