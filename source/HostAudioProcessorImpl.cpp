@@ -1,5 +1,6 @@
 #include "HostAudioProcessorImpl.h"
 #include "EditorTools.h"
+#include "MidiTools.h"
 #include "ParameterChangeListener.h"
 #include "juce_audio_devices/juce_audio_devices.h"
 #include "juce_core/juce_core.h"
@@ -43,11 +44,16 @@ HostAudioProcessorImpl::HostAudioProcessorImpl()
                 [&] (int index, float newValue) {
                     if(inner != nullptr && !isUpdatingParam) {
                         isUpdatingParam = true;
+                        // inform the wrapped plugin of external changes from the VST host
                         auto innerParam = inner->getParameters()[index];
                         innerParam->beginChangeGesture();
                         innerParam->setValue(newValue);
                         innerParam->endChangeGesture();
                         isUpdatingParam = false;
+                        // also inform the Electra One
+                        if(midiOutput != nullptr) {
+                            sendNRPN(midiOutput.get(), 1, index, static_cast<int>(newValue * 127 * 127));
+                        }
                     }
                 });
 
@@ -297,6 +303,12 @@ void HostAudioProcessorImpl::audioProcessorParameterChanged (juce::AudioProcesso
             // Verify if the value was set correctly.
             float updatedValue = param->getValue();
             logToFile ("sending param " + juce::String (param->getName (128)) + " - " + juce::String (updatedValue));
+
+            
+            // also inform the Electra One
+            if(midiOutput != nullptr) {
+                sendNRPN(midiOutput.get(), 1, parameterIndex, static_cast<int>(newValue * 127 * 127));
+            }
 
             isUpdatingParam = false; // Ensure this flag is reset within the lambda
         });
