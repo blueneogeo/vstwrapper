@@ -14,7 +14,7 @@ enum class EditorStyle { thisWindow,
 
 constexpr auto margin = 10;
 
-static void doLayout (juce::Component* main, juce::Component& bottom, int bottomHeight, juce::Rectangle<int> bounds)
+inline void doLayout (juce::Component* main, juce::Component& bottom, int bottomHeight, juce::Rectangle<int> bounds)
 {
     juce::Grid grid;
     grid.setGap (juce::Grid::Px { margin });
@@ -25,8 +25,7 @@ static void doLayout (juce::Component* main, juce::Component& bottom, int bottom
     grid.performLayout (bounds);
 }
 
-
-static std::string getPluginPath() {
+inline std::string getPluginPath() {
     uint32_t size = 1024;
     std::vector<char> buffer(size);
     
@@ -38,7 +37,7 @@ static std::string getPluginPath() {
     return std::string(buffer.data());
 }
 
-static void logToFile(const juce::String& message)
+inline void logToFile(const juce::String& message)
 {
     juce::File logFile = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
                          .getChildFile("ElectraLog.txt");

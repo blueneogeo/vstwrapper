@@ -4,7 +4,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_devices/juce_audio_devices.h>
 
-static void sendNRPN(juce::MidiOutput* midiOutput, int channel, int parameter, int value)
+inline void sendNRPN(juce::MidiOutput* midiOutput, int channel, int parameter, int value)
 {
     int parameterMSB = (parameter >> 7) & 0x7F;
     int parameterLSB = parameter & 0x7F;

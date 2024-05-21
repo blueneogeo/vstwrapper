@@ -1,10 +1,12 @@
 #pragma once
 
 #include "EditorTools.h"
+#include "juce_core/juce_core.h"
 #include "juce_gui_basics/juce_gui_basics.h"
 #include <juce_audio_devices/juce_audio_devices.h>
 #include <juce_audio_plugin_client/juce_audio_plugin_client.h>
 #include <juce_audio_processors/juce_audio_processors.h>
+#include "NRPNReceiver.h"
 
 class HostAudioProcessorImpl : public juce::AudioProcessor,
                                public juce::AudioProcessorListener,
@@ -21,12 +23,14 @@ public:
         float newValue) override;
 
     void handleIncomingMidiMessage (juce::MidiInput* source,
-        const juce::MidiMessage& message);
+        const juce::MidiMessage& message) override;
 
     void handlePartialSysexMessage (juce::MidiInput* source,
-        const uint* messageData,
+        const juce::uint8* messageData,
         int numBytesSoFar,
-        double timestamp);
+        double timestamp) override;
+
+    void handleIncomingNRPN(int parameter, int value);
 
     void audioProcessorChanged (AudioProcessor* processor, const ChangeDetails& details) override;
 
@@ -87,6 +91,7 @@ public:
     std::unique_ptr<juce::MidiInput> midiInput;
     std::unique_ptr<juce::MidiOutput> midiOutput;
     juce::CriticalSection midiInputLock;
+    std::unique_ptr<NRPNReceiver> midiReceiver;
 
 private:
     bool isUpdatingParam = false;

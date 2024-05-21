@@ -15,7 +15,7 @@ public:
             onParamChanged (parameterIndex, newValue);
     }
 
-    void parameterGestureChanged (int parameterIndex, bool gestureIsStarting)
+    void parameterGestureChanged (int, bool)
     {
     }
 

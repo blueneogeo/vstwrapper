@@ -4,6 +4,7 @@
 #include "ParameterChangeListener.h"
 #include "juce_audio_devices/juce_audio_devices.h"
 #include "juce_core/juce_core.h"
+#include <memory>
 
 HostAudioProcessorImpl::HostAudioProcessorImpl()
     : AudioProcessor (BusesProperties().withInput ("Input", juce::AudioChannelSet::stereo(), true).withOutput ("Output", juce::AudioChannelSet::stereo(), true))
@@ -40,19 +41,21 @@ HostAudioProcessorImpl::HostAudioProcessorImpl()
             auto param = new juce::AudioParameterFloat (i, name, juce::NormalisableRange<float> (static_cast<float> (0), static_cast<float> (1)), static_cast<float> (def));
 
             // inform the wrapped plugin of external changes coming from the VST host
-            auto newListener = new ParameterChangeListener(
+            auto newListener = new ParameterChangeListener (
                 [&] (int index, float newValue) {
-                    if(inner != nullptr && !isUpdatingParam) {
+                    if (inner != nullptr && !isUpdatingParam)
+                    {
                         isUpdatingParam = true;
                         // inform the wrapped plugin of external changes from the VST host
                         auto innerParam = inner->getParameters()[index];
                         innerParam->beginChangeGesture();
-                        innerParam->setValue(newValue);
+                        innerParam->setValue (newValue);
                         innerParam->endChangeGesture();
                         isUpdatingParam = false;
                         // also inform the Electra One
-                        if(midiOutput != nullptr) {
-                            sendNRPN(midiOutput.get(), 1, index, static_cast<int>(newValue * 127 * 127));
+                        if (midiOutput != nullptr)
+                        {
+                            sendNRPN (midiOutput.get(), 1, index, static_cast<int> (newValue * 127 * 127));
                         }
                     }
                 });
@@ -203,6 +206,17 @@ void HostAudioProcessorImpl::getStateInformation (juce::MemoryBlock& destData)
             stateNode->addTextElement (innerState.toBase64Encoding());
             return stateNode.release();
         }());
+
+        auto midiNode = new juce::XmlElement ("midi");
+        if (midiInput != nullptr)
+        {
+            midiNode->setAttribute ("in", midiInput->getIdentifier());
+        }
+        if (midiOutput != nullptr)
+        {
+            midiNode->setAttribute ("out", midiOutput->getIdentifier());
+        }
+        xml.addChildElement (midiNode);
     }
 
     const auto text = xml.toString();
@@ -226,6 +240,41 @@ void HostAudioProcessorImpl::setStateInformation (const void* data, int sizeInBy
         setNewPlugin (pd,
             (EditorStyle) xml->getIntAttribute (editorStyleTag, 0),
             innerState);
+
+        if (auto midiNode = xml->getChildByName ("midi"))
+        {
+            auto in = midiNode->getStringAttribute ("in");
+            auto out = midiNode->getStringAttribute ("out");
+
+            if (in.isNotEmpty())
+            {
+                auto inDevice = juce::MidiInput::openDevice (in, this);
+                if (inDevice == nullptr)
+                {
+                    logToFile ("midi in device not found");
+                }
+                else
+                {
+                    logToFile ("midi in device found and created");
+                    logToFile (inDevice->getName());
+                    midiInput = std::move (inDevice);
+                }
+            }
+            if (out.isNotEmpty())
+            {
+                auto outDevice = juce::MidiOutput::openDevice(out);
+                if (outDevice == nullptr)
+                {
+                    logToFile ("midi out device not found");
+                }
+                else
+                {
+                    logToFile ("midi out device found and created");
+                    logToFile (outDevice->getName());
+                    midiOutput = std::move (outDevice);
+                }
+            }
+        }
     }
 }
 
@@ -277,7 +326,7 @@ void HostAudioProcessorImpl::setNewPlugin (const juce::PluginDescription& pd, Ed
     pluginFormatManager.createPluginInstanceAsync (pd, getSampleRate(), getBlockSize(), callback);
 }
 
-void HostAudioProcessorImpl::audioProcessorParameterChanged (juce::AudioProcessor* processor,
+void HostAudioProcessorImpl::audioProcessorParameterChanged (juce::AudioProcessor*,
     int parameterIndex,
     float newValue)
 {
@@ -291,7 +340,7 @@ void HostAudioProcessorImpl::audioProcessorParameterChanged (juce::AudioProcesso
             auto* param = params[parameterIndex];
 
             param->beginChangeGesture();
-            // logToFile ("sending param change " + juce::String (parameterIndex) + " - " + juce::String (newValue));
+            logToFile ("sending param change " + juce::String (parameterIndex) + " - " + juce::String (newValue));
 
             // Notify host about the change.
             // param->setValue (newValue);
@@ -301,13 +350,13 @@ void HostAudioProcessorImpl::audioProcessorParameterChanged (juce::AudioProcesso
             param->endChangeGesture();
 
             // Verify if the value was set correctly.
-            float updatedValue = param->getValue();
-            logToFile ("sending param " + juce::String (param->getName (128)) + " - " + juce::String (updatedValue));
+            // float updatedValue = param->getValue();
+            // logToFile ("sending param " + juce::String (param->getName (128)) + " - " + juce::String (updatedValue));
 
-            
             // also inform the Electra One
-            if(midiOutput != nullptr) {
-                sendNRPN(midiOutput.get(), 1, parameterIndex, static_cast<int>(newValue * 127 * 127));
+            if (midiOutput != nullptr)
+            {
+                sendNRPN (midiOutput.get(), 1, parameterIndex, static_cast<int> (newValue * 127 * 127));
             }
 
             isUpdatingParam = false; // Ensure this flag is reset within the lambda
@@ -315,7 +364,7 @@ void HostAudioProcessorImpl::audioProcessorParameterChanged (juce::AudioProcesso
     }
 }
 
-void HostAudioProcessorImpl::audioProcessorChanged (AudioProcessor* processor, const ChangeDetails& details) {}
+void HostAudioProcessorImpl::audioProcessorChanged (AudioProcessor*, const ChangeDetails&) {}
 
 void HostAudioProcessorImpl::clearPlugin()
 {
@@ -334,7 +383,7 @@ void HostAudioProcessorImpl::clearPlugin()
     juce::NullCheckedInvocation::invoke (pluginChanged);
 }
 
-void HostAudioProcessorImpl::globalFocusChanged (juce::Component* focusedComponent) {}
+void HostAudioProcessorImpl::globalFocusChanged (juce::Component*) {}
 
 bool HostAudioProcessorImpl::isPluginLoaded() const
 {
@@ -360,10 +409,53 @@ void HostAudioProcessorImpl::changeListenerCallback (juce::ChangeBroadcaster* so
     }
 }
 
-    void HostAudioProcessorImpl::handleIncomingMidiMessage (juce::MidiInput* source,
-                                            const juce::MidiMessage& message) {}
+void HostAudioProcessorImpl::handleIncomingMidiMessage (juce::MidiInput* source,
+    const juce::MidiMessage& message) {
+    logToFile("incoming midi message");
+    if(midiReceiver != nullptr) {
+        // receiver will call handleIncomingNRPN
+        midiReceiver->handleIncomingMidiMessage(source, message); }
+    }
 
-    void HostAudioProcessorImpl::handlePartialSysexMessage (juce::MidiInput* source,
-                                            const uint* messageData,
-                                            int numBytesSoFar,
-                                            double timestamp) {}
+void HostAudioProcessorImpl::handleIncomingNRPN(int parameterIndex, int value)
+{
+    logToFile("incoming nrpm: " + static_cast<juce::String>(parameterIndex) + " - " + static_cast<juce::String>(value));
+
+    float newValue = static_cast<float>(value) / 128 / 128;
+
+    auto params = this->getParameters();
+    if (parameterIndex < params.size() && !isUpdatingParam)
+    {
+        isUpdatingParam = true;
+
+        // Ensure this code runs on the message thread
+        juce::MessageManager::callAsync ([this, params, parameterIndex, newValue]() {
+            auto* param = params[parameterIndex];
+
+            param->beginChangeGesture();
+            logToFile ("sending param change " + juce::String (parameterIndex) + " - " + juce::String (newValue));
+
+            // Notify host about the change.
+            // param->setValue (newValue);
+            param->setValueNotifyingHost (newValue);
+            // param->sendValueChangedMessageToListeners (newValue);
+
+            param->endChangeGesture();
+
+            auto innerParam = inner->getParameters()[parameterIndex];
+            innerParam->beginChangeGesture();
+            innerParam->setValueNotifyingHost(newValue);
+            innerParam->endChangeGesture();
+
+            isUpdatingParam = false; // Ensure this flag is reset within the lambda
+        });
+    }
+
+}
+
+void HostAudioProcessorImpl::handlePartialSysexMessage (juce::MidiInput*,
+    const juce::uint8*,
+    int,
+    double) {
+    logToFile("incoming sysex message");
+}

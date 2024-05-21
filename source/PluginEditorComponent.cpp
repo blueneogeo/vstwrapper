@@ -1,6 +1,8 @@
 #include "PluginEditorComponent.h"
 #include "EditorTools.h"
 #include "HostAudioProcessorImpl.h"
+#include "NRPNReceiver.h"
+#include <memory>
 
 void PluginEditorComponent::setScaleFactor (float scale)
 {
@@ -61,9 +63,16 @@ void PluginEditorComponent::midiInputChanged()
             }
             else
             {
-                logToFile ("midi device found and created");
-                logToFile (midiDevice->getName());
+                if(processor->midiInput != nullptr) {
+                    audioDeviceManager.removeMidiInputDeviceCallback(processor->midiInput->getIdentifier(), processor);
+                }
+                logToFile ("midi device found and created: " + midiDevice->getName());
                 processor->midiInput = std::move (midiDevice);
+                processor->midiReceiver = std::make_unique<NRPNReceiver> (1, [this] (int param, int value) {
+                    this->processor->handleIncomingNRPN (param, value);
+                });
+                audioDeviceManager.setMidiInputDeviceEnabled(input.identifier, true);
+                audioDeviceManager.addMidiInputDeviceCallback(input.identifier, processor);
             }
         }
     }

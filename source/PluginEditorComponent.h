@@ -1,8 +1,6 @@
 #pragma once
 
 #include "HostAudioProcessorImpl.h"
-#include "MidiTools.h"
-#include "EditorTools.h"
 #include "LookAndFeel.h"
 #include "juce_gui_basics/juce_gui_basics.h"
 #include <juce_audio_devices/juce_audio_devices.h>
@@ -27,8 +25,11 @@ public:
             juce::String deviceName = device.name;
             auto deviceID = device.identifier;
             midiInputSelector.addItem (deviceName, i + 1);
-        }
+            if(processor->midiInput != nullptr) {
+                midiInputSelector.setSelectedItemIndex(i);
+            }
 
+        }
         auto midiOutputs = juce::MidiOutput::getAvailableDevices();
         midiOutputSelector.setText ("Electra Midi OUT");
         for (int i = 0; i < midiOutputs.size(); i++)
@@ -37,6 +38,9 @@ public:
             juce::String deviceName = device.name;
             auto deviceID = device.identifier;
             midiOutputSelector.addItem (deviceName, i + 1);
+            if(processor->midiOutput != nullptr) {
+                midiOutputSelector.setSelectedItemIndex(i);
+            }
         }
 
         midiInputSelector.setLookAndFeel (lookAndFeel.get());
@@ -52,11 +56,6 @@ public:
 
         childBoundsChanged (editor.get());
 
-        testButton.onClick = [this] {
-            auto midiOutput = juce::MidiOutput::openDevice (1);
-            sendNRPN (midiOutput.get(), 1, 2000, 8000);
-            logToFile ("test pressed");
-        };
         closeButton.onClick = std::forward<Callback> (onClose);
 
         midiInputSelector.onChange = [this] { midiInputChanged(); };
@@ -72,8 +71,6 @@ public:
     void midiInputChanged();
 
     void midiOutputChanged();
-
-    // void sendNRPN (juce::MidiOutput* midiOutput, int channel, int parameter, int value);
 
 private:
 
