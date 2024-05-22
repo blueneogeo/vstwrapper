@@ -6,6 +6,7 @@
 #include <juce_audio_devices/juce_audio_devices.h>
 #include <juce_audio_plugin_client/juce_audio_plugin_client.h>
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <memory>
 #include "NRPNReceiver.h"
 
 class HostAudioProcessorImpl : public juce::AudioProcessor,
@@ -56,6 +57,10 @@ public:
 
     bool producesMidi() const final { return true; }
 
+    void setMidiInput(juce::String deviceID);
+
+    void setMidiOutput(juce::String deviceID);
+    
     double getTailLengthSeconds() const final { return 0.0; }
 
     int getNumPrograms() final { return 0; }
@@ -88,12 +93,16 @@ public:
     // pluginChanged is a callback to inform the HostAudioProcessorEditor
     std::function<void()> pluginChanged;
     juce::Array<juce::AudioProcessorParameter*> pluginParams;
+
+    juce::String midiInputDeviceID = "";
+    juce::String midiOutputDeviceID = "";
     std::unique_ptr<juce::MidiInput> midiInput;
     std::unique_ptr<juce::MidiOutput> midiOutput;
     juce::CriticalSection midiInputLock;
     std::unique_ptr<NRPNReceiver> midiReceiver;
 
 private:
+    juce::AudioDeviceManager deviceManager;
     bool isUpdatingParam = false;
     juce::CriticalSection innerMutex;
     std::unique_ptr<juce::AudioPluginInstance> inner;

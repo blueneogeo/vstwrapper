@@ -1,6 +1,7 @@
 #include "HostAudioProcessorImpl.h"
 #include "EditorTools.h"
 #include "MidiTools.h"
+#include "NRPNReceiver.h"
 #include "ParameterChangeListener.h"
 #include "juce_audio_devices/juce_audio_devices.h"
 #include "juce_core/juce_core.h"
@@ -9,6 +10,8 @@
 HostAudioProcessorImpl::HostAudioProcessorImpl()
     : AudioProcessor (BusesProperties().withInput ("Input", juce::AudioChannelSet::stereo(), true).withOutput ("Output", juce::AudioChannelSet::stereo(), true))
 {
+    deviceManager.initialise (2, 2, nullptr, true);
+
     appProperties.setStorageParameters ([&] {
         juce::PropertiesFile::Options opt;
         opt.applicationName = getName();
@@ -208,13 +211,13 @@ void HostAudioProcessorImpl::getStateInformation (juce::MemoryBlock& destData)
         }());
 
         auto midiNode = new juce::XmlElement ("midi");
-        if (midiInput != nullptr)
+        if (midiInputDeviceID.isNotEmpty())
         {
-            midiNode->setAttribute ("in", midiInput->getIdentifier());
+            midiNode->setAttribute ("in", midiInputDeviceID);
         }
-        if (midiOutput != nullptr)
+        if (midiOutputDeviceID.isNotEmpty())
         {
-            midiNode->setAttribute ("out", midiOutput->getIdentifier());
+            midiNode->setAttribute ("out", midiOutputDeviceID);
         }
         xml.addChildElement (midiNode);
     }
@@ -225,6 +228,7 @@ void HostAudioProcessorImpl::getStateInformation (juce::MemoryBlock& destData)
 
 void HostAudioProcessorImpl::setStateInformation (const void* data, int sizeInBytes)
 {
+    logToFile ("setStateInformation");
     const juce::ScopedLock sl (innerMutex);
 
     auto xml = juce::XmlDocument::parse (juce::String (juce::CharPointer_UTF8 (static_cast<const char*> (data)), (size_t) sizeInBytes));
@@ -244,38 +248,69 @@ void HostAudioProcessorImpl::setStateInformation (const void* data, int sizeInBy
         if (auto midiNode = xml->getChildByName ("midi"))
         {
             auto in = midiNode->getStringAttribute ("in");
-            auto out = midiNode->getStringAttribute ("out");
-
+            logToFile ("input >" + in + "<");
             if (in.isNotEmpty())
             {
-                auto inDevice = juce::MidiInput::openDevice (in, this);
-                if (inDevice == nullptr)
-                {
-                    logToFile ("midi in device not found");
-                }
-                else
-                {
-                    logToFile ("midi in device found and created");
-                    logToFile (inDevice->getName());
-                    midiInput = std::move (inDevice);
-                }
+                logToFile ("input not empty, setting");
+                setMidiInput (in);
             }
+            else
+            {
+                logToFile ("midi in not set");
+            }
+
+            auto out = midiNode->getStringAttribute ("out");
+            logToFile ("output >" + out + "<");
             if (out.isNotEmpty())
             {
-                auto outDevice = juce::MidiOutput::openDevice(out);
-                if (outDevice == nullptr)
-                {
-                    logToFile ("midi out device not found");
-                }
-                else
-                {
-                    logToFile ("midi out device found and created");
-                    logToFile (outDevice->getName());
-                    midiOutput = std::move (outDevice);
-                }
+                logToFile ("output not empty, setting");
+                setMidiOutput (out);
+            }
+            else
+            {
+                logToFile ("midi out not set");
             }
         }
     }
+}
+
+void HostAudioProcessorImpl::setMidiInput (juce::String deviceID)
+{
+    logToFile ("setting midi input to " + deviceID);
+    if (midiInputDeviceID.isNotEmpty())
+    {
+        deviceManager.setMidiInputDeviceEnabled (midiInputDeviceID, false);
+        deviceManager.removeMidiInputDeviceCallback (midiInputDeviceID, this);
+    }
+
+    deviceManager.setMidiInputDeviceEnabled (deviceID, true);
+    deviceManager.addMidiInputDeviceCallback (deviceID, this);
+    midiReceiver = std::make_unique<NRPNReceiver> (1, [this] (int param, int value) {
+        handleIncomingNRPN (param, value);
+    });
+
+    midiInputDeviceID = deviceID;
+}
+
+void HostAudioProcessorImpl::setMidiOutput (juce::String deviceID)
+{
+    logToFile ("setting midi output to " + deviceID);
+    if (midiOutputDeviceID.isNotEmpty() && midiOutput != nullptr)
+    {
+        midiOutput->clearAllPendingMessages();
+    }
+
+    auto outDevice = juce::MidiOutput::openDevice (deviceID);
+    if (outDevice == nullptr)
+    {
+        logToFile ("midi out device not found");
+        return;
+    }
+
+    logToFile ("midi out device found and created");
+    logToFile (outDevice->getName());
+    midiOutput = std::move (outDevice);
+    midiOutputDeviceID = deviceID;
 }
 
 void HostAudioProcessorImpl::setNewPlugin (const juce::PluginDescription& pd, EditorStyle where, const juce::MemoryBlock& mb)
@@ -410,18 +445,21 @@ void HostAudioProcessorImpl::changeListenerCallback (juce::ChangeBroadcaster* so
 }
 
 void HostAudioProcessorImpl::handleIncomingMidiMessage (juce::MidiInput* source,
-    const juce::MidiMessage& message) {
-    logToFile("incoming midi message");
-    if(midiReceiver != nullptr) {
-        // receiver will call handleIncomingNRPN
-        midiReceiver->handleIncomingMidiMessage(source, message); }
-    }
-
-void HostAudioProcessorImpl::handleIncomingNRPN(int parameterIndex, int value)
+    const juce::MidiMessage& message)
 {
-    logToFile("incoming nrpm: " + static_cast<juce::String>(parameterIndex) + " - " + static_cast<juce::String>(value));
+    logToFile ("incoming midi message");
+    if (midiReceiver != nullptr)
+    {
+        // receiver will call handleIncomingNRPN
+        midiReceiver->handleIncomingMidiMessage (source, message);
+    }
+}
 
-    float newValue = static_cast<float>(value) / 128 / 128;
+void HostAudioProcessorImpl::handleIncomingNRPN (int parameterIndex, int value)
+{
+    logToFile ("incoming nrpm: " + static_cast<juce::String> (parameterIndex) + " - " + static_cast<juce::String> (value));
+
+    float newValue = static_cast<float> (value) / 128 / 128;
 
     auto params = this->getParameters();
     if (parameterIndex < params.size() && !isUpdatingParam)
@@ -444,18 +482,18 @@ void HostAudioProcessorImpl::handleIncomingNRPN(int parameterIndex, int value)
 
             auto innerParam = inner->getParameters()[parameterIndex];
             innerParam->beginChangeGesture();
-            innerParam->setValueNotifyingHost(newValue);
+            innerParam->setValueNotifyingHost (newValue);
             innerParam->endChangeGesture();
 
             isUpdatingParam = false; // Ensure this flag is reset within the lambda
         });
     }
-
 }
 
 void HostAudioProcessorImpl::handlePartialSysexMessage (juce::MidiInput*,
     const juce::uint8*,
     int,
-    double) {
-    logToFile("incoming sysex message");
+    double)
+{
+    logToFile ("incoming sysex message");
 }

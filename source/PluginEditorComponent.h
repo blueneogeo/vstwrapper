@@ -1,5 +1,6 @@
 #pragma once
 
+#include "EditorTools.h"
 #include "HostAudioProcessorImpl.h"
 #include "LookAndFeel.h"
 #include "juce_gui_basics/juce_gui_basics.h"
@@ -15,7 +16,6 @@ public:
         : processor(hostAudioProcessor), editor (std::move (editorIn))
     {
         lookAndFeel = std::make_unique<CustomLookAndFeel> (12.0f);
-        audioDeviceManager.initialise (2, 2, nullptr, true);
 
         auto midiInputs = juce::MidiInput::getAvailableDevices();
         midiInputSelector.setText ("Electra Midi IN");
@@ -25,11 +25,11 @@ public:
             juce::String deviceName = device.name;
             auto deviceID = device.identifier;
             midiInputSelector.addItem (deviceName, i + 1);
-            if(processor->midiInput != nullptr) {
+            if(deviceID == processor->midiInputDeviceID) {
                 midiInputSelector.setSelectedItemIndex(i);
             }
-
         }
+
         auto midiOutputs = juce::MidiOutput::getAvailableDevices();
         midiOutputSelector.setText ("Electra Midi OUT");
         for (int i = 0; i < midiOutputs.size(); i++)
@@ -38,7 +38,7 @@ public:
             juce::String deviceName = device.name;
             auto deviceID = device.identifier;
             midiOutputSelector.addItem (deviceName, i + 1);
-            if(processor->midiOutput != nullptr) {
+            if(deviceID == processor->midiOutputDeviceID) {
                 midiOutputSelector.setSelectedItemIndex(i);
             }
         }
@@ -58,8 +58,25 @@ public:
 
         closeButton.onClick = std::forward<Callback> (onClose);
 
-        midiInputSelector.onChange = [this] { midiInputChanged(); };
-        midiOutputSelector.onChange = [this] { midiOutputChanged(); };
+        midiInputSelector.onChange = [this] { 
+            logToFile("selected input " + static_cast<juce::String>(midiInputSelector.getSelectedId()));
+            if(midiInputSelector.getSelectedId() == 0) return; 
+            auto inputs = juce::MidiInput::getAvailableDevices();
+            auto deviceIndex = midiInputSelector.getSelectedId();
+            auto input = inputs[deviceIndex-1];
+            logToFile("selected input name " + input.name);
+            processor->setMidiInput(input.identifier);
+        };
+
+        midiOutputSelector.onChange = [this] {
+            logToFile("selected output " + static_cast<juce::String>(midiOutputSelector.getSelectedId()));
+            if(midiOutputSelector.getSelectedId() == 0) return; 
+            auto outputs = juce::MidiOutput::getAvailableDevices();
+            auto deviceIndex = midiOutputSelector.getSelectedId();
+            auto output = outputs[deviceIndex-1];
+            logToFile("selected output name " + output.name);
+            processor->setMidiOutput(output.identifier);
+        };
     }
 
     void setScaleFactor (float scale);
@@ -68,17 +85,12 @@ public:
 
     void childBoundsChanged (Component* child) override;
 
-    void midiInputChanged();
-
-    void midiOutputChanged();
-
 private:
 
     HostAudioProcessorImpl* processor;
     
     static constexpr auto toolbarHeight = 20;
 
-    juce::AudioDeviceManager audioDeviceManager;
     std::unique_ptr<juce::AudioProcessorEditor> editor;
     juce::ComboBox midiInputSelector;
     juce::ComboBox midiOutputSelector;
