@@ -148,19 +148,6 @@ void HostAudioProcessorImpl::processBlock (juce::AudioBuffer<float>& buffer, juc
     {
         // Process block for loaded VST plugin
         inner->processBlock (buffer, midiMessages);
-
-        // Run parameters when processing block. Probably very bad idea, runs way too fast!
-        // At least check if the values have changed!
-        //
-        // juce::MessageManager::callAsync ([this]() {
-        //     for (auto param : getParameters())
-        //     {
-        //         if (auto* p = dynamic_cast<juce::RangedAudioParameter*> (param))
-        //         {
-        //             p->sendValueChangedMessageToListeners (p->getValue());
-        //         }
-        //     }
-        // });
     }
 }
 
@@ -176,16 +163,6 @@ void HostAudioProcessorImpl::processBlock (juce::AudioBuffer<double>& buffer, ju
 
         // Create a temporary float buffer from the double buffer if needed or directly use as below:
         inner->processBlock (buffer, midiMessages);
-
-        // juce::MessageManager::callAsync ([this]() {
-        //     for (auto param : getParameters())
-        //     {
-        //         if (auto* p = dynamic_cast<juce::RangedAudioParameter*> (param))
-        //         {
-        //             p->sendValueChangedMessageToListeners (p->getValue());
-        //         }
-        //     }
-        // });
     }
 }
 
@@ -218,6 +195,14 @@ void HostAudioProcessorImpl::getStateInformation (juce::MemoryBlock& destData)
         if (midiOutputDeviceID.isNotEmpty())
         {
             midiNode->setAttribute ("out", midiOutputDeviceID);
+        }
+        if (midiChannelID > 0)
+        {
+            midiNode->setAttribute ("channel", midiChannelID);
+        }
+        if (presetSlotID > 0)
+        {
+            midiNode->setAttribute ("slot", presetSlotID);
         }
         xml.addChildElement (midiNode);
     }
@@ -269,6 +254,20 @@ void HostAudioProcessorImpl::setStateInformation (const void* data, int sizeInBy
             else
             {
                 logToFile ("midi out not set");
+            }
+
+            auto channel = midiNode->getIntAttribute ("channel");
+            if (channel > 0)
+            {
+                logToFile("using channel " + static_cast<juce::String>(channel));
+                midiChannelID = channel;
+            }
+
+            auto slot = midiNode->getIntAttribute ("slot");
+            if (slot > 0)
+            {
+                logToFile("using slot" + static_cast<juce::String>(slot));
+                presetSlotID = slot;
             }
         }
     }
@@ -434,6 +433,8 @@ std::unique_ptr<juce::AudioProcessorEditor> HostAudioProcessorImpl::createInnerE
 
 void HostAudioProcessorImpl::changeListenerCallback (juce::ChangeBroadcaster* source)
 {
+    logToFile("change listener called");
+    
     if (source != &pluginList)
         return;
 

@@ -29,7 +29,6 @@ public:
         };
 
         buttons.thisWindowButton.onClick = getCallback (EditorStyle::thisWindow);
-        buttons.newWindowButton.onClick = getCallback (EditorStyle::newWindow);
     }
 
     void resized() override
@@ -46,7 +45,6 @@ private:
 
             addAndMakeVisible (label);
             addAndMakeVisible (thisWindowButton);
-            addAndMakeVisible (newWindowButton);
         }
 
         void resized() override
@@ -64,15 +62,15 @@ private:
             grid.autoFlow = juce::Grid::AutoFlow::column;
             grid.setGap (juce::Grid::Px { margin });
             grid.autoRows = grid.autoColumns = juce::Grid::TrackInfo { juce::Grid::Fr { 1 } };
-            grid.items = { juce::GridItem { thisWindowButton },
-                juce::GridItem { newWindowButton } };
+            grid.items = {
+                juce::GridItem { thisWindowButton },
+            };
 
             grid.performLayout (vertical.items[1].currentBounds.toNearestInt());
         }
 
         juce::Label label { "", "Select a plugin from the list, then display it using the buttons below." };
-        juce::TextButton thisWindowButton { "Open In This Window" };
-        juce::TextButton newWindowButton { "Open In New Window" };
+        juce::TextButton thisWindowButton { "Open VST3 Plugin" };
     };
 
     juce::PluginListComponent pluginListComponent;

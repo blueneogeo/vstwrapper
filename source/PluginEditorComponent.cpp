@@ -15,19 +15,29 @@ void PluginEditorComponent::resized()
     auto toolbar = area.removeFromTop (toolbarHeight + 10).reduced (7, 5);
     auto inner = toolbar.removeFromTop (toolbarHeight);
 
+    // electraLabel.setBounds(inner.removeFromLeft(100));
+    inner.removeFromLeft (80); // Electra One logo space
     midiInputSelector.setBounds (inner.removeFromLeft (140));
     inner.removeFromLeft (7);
     midiOutputSelector.setBounds (inner.removeFromLeft (140));
     inner.removeFromLeft (7);
-    midiChannelSelector.setBounds (inner.removeFromLeft (80));
+    midiChannelSelector.setBounds (inner.removeFromLeft (100));
     inner.removeFromLeft (7);
-    electraSlotSelector.setBounds (inner.removeFromLeft (80));
+    electraSlotSelector.setBounds (inner.removeFromLeft (100));
     inner.removeFromLeft (7);
     ejectButton.setBounds (inner.removeFromRight (50));
 
     if (editor)
     {
         editor->setBounds (area);
+    }
+}
+
+void PluginEditorComponent::paint (juce::Graphics& g)
+{
+    if (svgLogo)
+    {
+        svgLogo->drawAt(g, 5, 4, 1);
     }
 }
 
