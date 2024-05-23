@@ -17,7 +17,14 @@ public:
     PluginEditorComponent (HostAudioProcessorImpl* hostAudioProcessor, std::unique_ptr<juce::AudioProcessorEditor> editorIn, Callback&& onClose)
         : processor (hostAudioProcessor), editor (std::move (editorIn))
     {
-        lookAndFeel = std::make_unique<CustomLookAndFeel> (12.0f);
+        auto colors = juce::LookAndFeel_V4::getDarkColourScheme();
+        auto textColor = juce::Colour::fromRGB(240, 240, 240);
+        auto outlineColor = juce::Colour::fromRGB(70, 70, 70);
+        colors.setUIColour(juce::LookAndFeel_V4::ColourScheme::UIColour::defaultText, textColor);
+        colors.setUIColour(juce::LookAndFeel_V4::ColourScheme::UIColour::outline, outlineColor);
+        colors.setUIColour(juce::LookAndFeel_V4::ColourScheme::UIColour::menuText, textColor);
+        lookAndFeel = std::make_unique<CustomLookAndFeel> (12.0f, colors);
+
         auto svg = juce::parseXML(electraOneSVGLogo);
         svgLogo = juce::Drawable::createFromSVG(*svg);
         juce::Rectangle<float> targetBounds(0, 0, 60, 20);
@@ -71,15 +78,12 @@ public:
             }
         }
 
-        // electraLabel.setText("Electra", juce::NotificationType::dontSendNotification);
-        // electraLabel.setLookAndFeel(lookAndFeel.get());
         midiInputSelector.setLookAndFeel (lookAndFeel.get());
         midiOutputSelector.setLookAndFeel (lookAndFeel.get());
         midiChannelSelector.setLookAndFeel (lookAndFeel.get());
         electraSlotSelector.setLookAndFeel (lookAndFeel.get());
         ejectButton.setLookAndFeel (lookAndFeel.get());
 
-        // addAndMakeVisible(electraLabel);
         addAndMakeVisible (editor.get());
         addAndMakeVisible (midiInputSelector);
         addAndMakeVisible (midiOutputSelector);
@@ -136,7 +140,6 @@ private:
     static constexpr auto toolbarHeight = 20;
 
     std::unique_ptr<juce::AudioProcessorEditor> editor;
-    // juce::Label electraLabel { "Electra" };
     std::unique_ptr<juce::Drawable> svgLogo;
     juce::ComboBox midiInputSelector;
     juce::ComboBox midiOutputSelector;

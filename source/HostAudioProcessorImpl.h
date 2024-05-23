@@ -2,6 +2,7 @@
 
 #include "EditorTools.h"
 #include "juce_core/juce_core.h"
+#include "juce_events/juce_events.h"
 #include "juce_gui_basics/juce_gui_basics.h"
 #include <juce_audio_devices/juce_audio_devices.h>
 #include <juce_audio_plugin_client/juce_audio_plugin_client.h>
@@ -12,7 +13,8 @@
 class HostAudioProcessorImpl : public juce::AudioProcessor,
                                public juce::AudioProcessorListener,
                                private juce::FocusChangeListener,
-                               public juce::MidiInputCallback
+                               public juce::MidiInputCallback,
+                                private juce::ChangeListener
 {
 public:
     HostAudioProcessorImpl();
@@ -114,5 +116,5 @@ private:
     static constexpr const char* innerStateTag = "inner_state";
     static constexpr const char* editorStyleTag = "editor_style";
 
-    void changeListenerCallback (juce::ChangeBroadcaster* source);
+    void changeListenerCallback (juce::ChangeBroadcaster* source) override;
 };
