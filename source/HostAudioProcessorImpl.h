@@ -92,13 +92,14 @@ public:
     juce::KnownPluginList pluginList;
     // pluginChanged is a callback to inform the HostAudioProcessorEditor
     std::function<void()> pluginChanged;
+
     juce::Array<juce::AudioProcessorParameter*> pluginParams;
 
     juce::String midiInputDeviceID = "";
     juce::String midiOutputDeviceID = "";
-    std::unique_ptr<juce::MidiInput> midiInput;
+    int midiChannelID = 0;
+    int presetSlotID = 0;
     std::unique_ptr<juce::MidiOutput> midiOutput;
-    juce::CriticalSection midiInputLock;
     std::unique_ptr<NRPNReceiver> midiReceiver;
 
 private:

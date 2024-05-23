@@ -43,20 +43,40 @@ public:
             }
         }
 
+        midiChannelSelector.setText("Channel");
+        for (int i = 1; i <= 16; i++)
+        {
+            midiChannelSelector.addItem("channel " + static_cast<juce::String>(i), i);
+            if(i == processor->midiChannelID) {
+                midiChannelSelector.setSelectedItemIndex(i-1);
+            }
+        }
+
+        electraSlotSelector.setText("Slot");
+        for (int i = 1; i <= 12; i++)
+        {
+            electraSlotSelector.addItem("Preset " + static_cast<juce::String>(i), i);
+            if(i == processor->presetSlotID) {
+                electraSlotSelector.setSelectedItemIndex(i-1);
+            }
+        }
+
         midiInputSelector.setLookAndFeel (lookAndFeel.get());
         midiOutputSelector.setLookAndFeel (lookAndFeel.get());
-        testButton.setLookAndFeel (lookAndFeel.get());
-        closeButton.setLookAndFeel (lookAndFeel.get());
+        midiChannelSelector.setLookAndFeel (lookAndFeel.get());
+        electraSlotSelector.setLookAndFeel (lookAndFeel.get());
+        ejectButton.setLookAndFeel (lookAndFeel.get());
 
         addAndMakeVisible (editor.get());
         addAndMakeVisible (midiInputSelector);
         addAndMakeVisible (midiOutputSelector);
-        addAndMakeVisible (testButton);
-        addAndMakeVisible (closeButton);
+        addAndMakeVisible (midiChannelSelector);
+        addAndMakeVisible (electraSlotSelector);
+        addAndMakeVisible (ejectButton);
 
         childBoundsChanged (editor.get());
 
-        closeButton.onClick = std::forward<Callback> (onClose);
+        ejectButton.onClick = std::forward<Callback> (onClose);
 
         midiInputSelector.onChange = [this] { 
             logToFile("selected input " + static_cast<juce::String>(midiInputSelector.getSelectedId()));
@@ -94,7 +114,8 @@ private:
     std::unique_ptr<juce::AudioProcessorEditor> editor;
     juce::ComboBox midiInputSelector;
     juce::ComboBox midiOutputSelector;
-    juce::TextButton closeButton { "Eject" };
-    juce::TextButton testButton { "Test" };
+    juce::ComboBox midiChannelSelector;
+    juce::ComboBox electraSlotSelector;
+    juce::TextButton ejectButton { "Eject" };
     std::unique_ptr<CustomLookAndFeel> lookAndFeel;
 };

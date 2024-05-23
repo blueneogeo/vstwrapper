@@ -470,14 +470,9 @@ void HostAudioProcessorImpl::handleIncomingNRPN (int parameterIndex, int value)
         juce::MessageManager::callAsync ([this, params, parameterIndex, newValue]() {
             auto* param = params[parameterIndex];
 
+            // logToFile ("sending param change " + juce::String (parameterIndex) + " - " + juce::String (newValue));
             param->beginChangeGesture();
-            logToFile ("sending param change " + juce::String (parameterIndex) + " - " + juce::String (newValue));
-
-            // Notify host about the change.
-            // param->setValue (newValue);
             param->setValueNotifyingHost (newValue);
-            // param->sendValueChangedMessageToListeners (newValue);
-
             param->endChangeGesture();
 
             auto innerParam = inner->getParameters()[parameterIndex];
