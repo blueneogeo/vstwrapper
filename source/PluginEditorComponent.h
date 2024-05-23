@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Images.h"
 #include "EditorTools.h"
 #include "HostAudioProcessorImpl.h"
+#include "Images.h"
 #include "LookAndFeel.h"
 #include "juce_core/juce_core.h"
 #include "juce_gui_basics/juce_gui_basics.h"
@@ -18,17 +18,17 @@ public:
         : processor (hostAudioProcessor), editor (std::move (editorIn))
     {
         auto colors = juce::LookAndFeel_V4::getDarkColourScheme();
-        auto textColor = juce::Colour::fromRGB(240, 240, 240);
-        auto outlineColor = juce::Colour::fromRGB(70, 70, 70);
-        colors.setUIColour(juce::LookAndFeel_V4::ColourScheme::UIColour::defaultText, textColor);
-        colors.setUIColour(juce::LookAndFeel_V4::ColourScheme::UIColour::outline, outlineColor);
-        colors.setUIColour(juce::LookAndFeel_V4::ColourScheme::UIColour::menuText, textColor);
+        auto textColor = juce::Colour::fromRGB (240, 240, 240);
+        auto outlineColor = juce::Colour::fromRGB (70, 70, 70);
+        colors.setUIColour (juce::LookAndFeel_V4::ColourScheme::UIColour::defaultText, textColor);
+        colors.setUIColour (juce::LookAndFeel_V4::ColourScheme::UIColour::outline, outlineColor);
+        colors.setUIColour (juce::LookAndFeel_V4::ColourScheme::UIColour::menuText, textColor);
         lookAndFeel = std::make_unique<CustomLookAndFeel> (12.0f, colors);
 
-        auto svg = juce::parseXML(electraOneSVGLogo);
-        svgLogo = juce::Drawable::createFromSVG(*svg);
-        juce::Rectangle<float> targetBounds(0, 0, 60, 20);
-        svgLogo->setTransformToFit(targetBounds, juce::RectanglePlacement::centred);
+        auto svg = juce::parseXML (electraOneSVGLogo);
+        svgLogo = juce::Drawable::createFromSVG (*svg);
+        juce::Rectangle<float> targetBounds (0, 0, 60, 20);
+        svgLogo->setTransformToFit (targetBounds, juce::RectanglePlacement::centred);
 
         auto midiInputs = juce::MidiInput::getAvailableDevices();
         midiInputSelector.setText ("Electra Midi IN");
@@ -132,7 +132,7 @@ public:
 
     void childBoundsChanged (Component* child) override;
 
-    void paint(juce::Graphics& g) override;
+    void paint (juce::Graphics& g) override;
 
 private:
     HostAudioProcessorImpl* processor;

@@ -37,7 +37,7 @@ void PluginEditorComponent::paint (juce::Graphics& g)
 {
     if (svgLogo)
     {
-        svgLogo->drawAt(g, 5, 4, 1);
+        svgLogo->drawAt(g, 5, 5, 1);
     }
 }
 

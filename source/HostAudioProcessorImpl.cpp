@@ -260,14 +260,14 @@ void HostAudioProcessorImpl::setStateInformation (const void* data, int sizeInBy
             auto channel = midiNode->getIntAttribute ("channel");
             if (channel > 0)
             {
-                logToFile("using channel " + static_cast<juce::String>(channel));
+                logToFile ("using channel " + static_cast<juce::String> (channel));
                 midiChannelID = channel;
             }
 
             auto slot = midiNode->getIntAttribute ("slot");
             if (slot > 0)
             {
-                logToFile("using slot" + static_cast<juce::String>(slot));
+                logToFile ("using slot" + static_cast<juce::String> (slot));
                 presetSlotID = slot;
             }
         }
@@ -381,31 +381,28 @@ void HostAudioProcessorImpl::audioProcessorParameterChanged (juce::AudioProcesso
         isUpdatingParam = true;
 
         // Ensure this code runs on the message thread
-        juce::MessageManager::callAsync ([this, params, parameterIndex, newValue]() {
-            auto* param = params[parameterIndex];
+        // juce::MessageManager::callAsync ([this, params, parameterIndex, newValue]() {
+        auto* param = params[parameterIndex];
 
-            param->beginChangeGesture();
-            logToFile ("sending param change " + juce::String (parameterIndex) + " - " + juce::String (newValue));
+        param->beginChangeGesture();
+        // logToFile ("sending param change " + juce::String (parameterIndex) + " - " + juce::String (newValue));
 
-            // Notify host about the change.
-            // param->setValue (newValue);
-            param->setValueNotifyingHost (newValue);
-            // param->sendValueChangedMessageToListeners (newValue);
+        // Notify host about the change.
+        // param->setValue (newValue);
+        param->setValueNotifyingHost (newValue);
+        // param->sendValueChangedMessageToListeners (newValue);
 
-            param->endChangeGesture();
+        param->endChangeGesture();
 
-            // Verify if the value was set correctly.
-            // float updatedValue = param->getValue();
-            // logToFile ("sending param " + juce::String (param->getName (128)) + " - " + juce::String (updatedValue));
+        // Verify if the value was set correctly.
+        // float updatedValue = param->getValue();
+        // logToFile ("sending param " + juce::String (param->getName (128)) + " - " + juce::String (updatedValue));
 
-            // also inform the Electra One
-            if (midiOutput != nullptr)
-            {
-                sendNRPN (midiOutput.get(), 1, parameterIndex, static_cast<int> (newValue * 127 * 127));
-            }
+        // also inform the Electra One
+        sendOutgoingNRPN (parameterIndex, static_cast<int> (newValue * 127 * 127));
 
-            isUpdatingParam = false; // Ensure this flag is reset within the lambda
-        });
+        isUpdatingParam = false; // Ensure this flag is reset within the lambda
+        // });
     }
 }
 
@@ -492,6 +489,15 @@ void HostAudioProcessorImpl::handleIncomingNRPN (int parameterIndex, int value)
 
             isUpdatingParam = false; // Ensure this flag is reset within the lambda
         });
+    }
+}
+
+void HostAudioProcessorImpl::sendOutgoingNRPN (int parameter, int value)
+{
+    if (midiOutput != nullptr && midiChannelID > 0 && presetSlotID > 0)
+    {
+        int slotParamId = presetSlotID * MAX_PRESET_PARAMS + parameter;
+        sendNRPN (midiOutput.get(), midiChannelID, slotParamId, static_cast<int> (value * 127 * 127));
     }
 }
 
