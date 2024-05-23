@@ -466,23 +466,26 @@ void HostAudioProcessorImpl::handleIncomingNRPN (int parameterIndex, int value)
 {
     logToFile ("incoming nrpm: " + static_cast<juce::String> (parameterIndex) + " - " + static_cast<juce::String> (value));
 
+    int floor = static_cast<int> (std::floor (static_cast<float> (parameterIndex) / static_cast<float> (MAX_PRESET_PARAMS)));
+    int base = floor * MAX_PRESET_PARAMS;
+    int parameter = parameterIndex - base;
     float newValue = static_cast<float> (value) / 128 / 128;
 
     auto params = this->getParameters();
-    if (parameterIndex < params.size() && !isUpdatingParam)
+    if (parameter < params.size() && !isUpdatingParam)
     {
         isUpdatingParam = true;
 
         // Ensure this code runs on the message thread
-        juce::MessageManager::callAsync ([this, params, parameterIndex, newValue]() {
-            auto* param = params[parameterIndex];
+        juce::MessageManager::callAsync ([this, params, parameter, newValue]() {
+            auto* param = params[parameter];
 
             // logToFile ("sending param change " + juce::String (parameterIndex) + " - " + juce::String (newValue));
             param->beginChangeGesture();
             param->setValueNotifyingHost (newValue);
             param->endChangeGesture();
 
-            auto innerParam = inner->getParameters()[parameterIndex];
+            auto innerParam = inner->getParameters()[parameter];
             innerParam->beginChangeGesture();
             innerParam->setValueNotifyingHost (newValue);
             innerParam->endChangeGesture();

@@ -110,7 +110,7 @@ private:
     // numbers of params per preset. 
     // chosen so 127*127/1300 > 12, since we have 12 presets per bank
     // this allows all 12 presets, so 1 bank, to be sent over a single channel
-    const MAX_PRESET_PARAMS = 1300;
+    const int MAX_PRESET_PARAMS = 1300;
     juce::AudioDeviceManager deviceManager;
     bool isUpdatingParam = false;
     juce::CriticalSection innerMutex;
