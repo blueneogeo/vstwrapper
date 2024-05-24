@@ -58,7 +58,7 @@ HostAudioProcessorImpl::HostAudioProcessorImpl()
                         // also inform the Electra One
                         if (midiOutput != nullptr)
                         {
-                            sendNRPN (midiOutput.get(), 1, index, static_cast<int> (newValue * 127 * 127));
+                            sendOutgoingNRPN(index, static_cast<int>(127 * 127 * newValue));
                         }
                     }
                 });
@@ -466,7 +466,7 @@ void HostAudioProcessorImpl::handleIncomingNRPN (int parameterIndex, int value)
 {
     logToFile ("incoming nrpm: " + static_cast<juce::String> (parameterIndex) + " - " + static_cast<juce::String> (value));
 
-    int floor = static_cast<int> (std::floor (static_cast<float> (parameterIndex) / static_cast<float> (MAX_PRESET_PARAMS)));
+    int floor = static_cast<int> (std::floor (static_cast<float> (parameterIndex - 1) / static_cast<float> (MAX_PRESET_PARAMS)));
     int base = floor * MAX_PRESET_PARAMS;
     int parameter = parameterIndex - base;
     float newValue = static_cast<float> (value) / 128 / 128;
@@ -499,8 +499,8 @@ void HostAudioProcessorImpl::sendOutgoingNRPN (int parameter, int value)
 {
     if (midiOutput != nullptr && midiChannelID > 0 && presetSlotID > 0)
     {
-        int slotParamId = presetSlotID * MAX_PRESET_PARAMS + parameter;
-        sendNRPN (midiOutput.get(), midiChannelID, slotParamId, static_cast<int> (value * 127 * 127));
+        int slotParamId = (presetSlotID - 1) * MAX_PRESET_PARAMS + parameter;
+        sendNRPN (midiOutput.get(), midiChannelID, slotParamId, value);
     }
 }
 

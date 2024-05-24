@@ -64,7 +64,7 @@ public:
             midiChannelSelector.addItem ("channel " + static_cast<juce::String> (i), i);
             if (i == processor->midiChannelID)
             {
-                midiChannelSelector.setSelectedItemIndex (i - 1);
+                midiChannelSelector.setSelectedId(i);
             }
         }
 
@@ -74,7 +74,7 @@ public:
             electraSlotSelector.addItem ("Preset " + static_cast<juce::String> (i), i);
             if (i == processor->presetSlotID)
             {
-                electraSlotSelector.setSelectedItemIndex (i - 1);
+                electraSlotSelector.setSelectedId (i);
             }
         }
 
@@ -119,10 +119,12 @@ public:
 
         midiChannelSelector.onChange = [this] {
             processor->midiChannelID = midiChannelSelector.getSelectedId();
+            logToFile("set midi channel to " + static_cast<juce::String>(processor->midiChannelID));
         };
 
         electraSlotSelector.onChange = [this] {
             processor->presetSlotID = electraSlotSelector.getSelectedId();
+            logToFile("set preset to " + static_cast<juce::String>(processor->presetSlotID));
         };
     }
 
