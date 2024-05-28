@@ -475,6 +475,10 @@ void HostAudioProcessorImpl::handleIncomingNRPN (int parameterIndex, int value)
     int parameter = parameterIndex - base - 1;
     float newValue = static_cast<float> (value) / 128 / 128;
 
+    // publish the event that a parameter has changed
+    auto intValue = static_cast<int>(127 * 127 * newValue);
+    ParameterEventBus::publish(parameterIndex - 1, intValue);
+
     auto params = this->getParameters();
     if (parameter < params.size() && !isUpdatingParam)
     {

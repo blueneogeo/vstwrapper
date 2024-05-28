@@ -73,7 +73,7 @@ public:
         electraSlotSelector.setText ("Slot");
         for (int i = 1; i <= 12; i++)
         {
-            electraSlotSelector.addItem ("Preset " + static_cast<juce::String> (i), i);
+            electraSlotSelector.addItem ("preset " + static_cast<juce::String> (i), i);
             if (i == processor->presetSlotID)
             {
                 electraSlotSelector.setSelectedId (i);
