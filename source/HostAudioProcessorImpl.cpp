@@ -468,7 +468,7 @@ void HostAudioProcessorImpl::handleIncomingNRPN (int parameterIndex, int value)
 
     int floor = static_cast<int> (std::floor (static_cast<float> (parameterIndex - 1) / static_cast<float> (MAX_PRESET_PARAMS)));
     int base = floor * MAX_PRESET_PARAMS;
-    int parameter = parameterIndex - base;
+    int parameter = parameterIndex - base - 1;
     float newValue = static_cast<float> (value) / 128 / 128;
 
     auto params = this->getParameters();
@@ -499,7 +499,7 @@ void HostAudioProcessorImpl::sendOutgoingNRPN (int parameter, int value)
 {
     if (midiOutput != nullptr && midiChannelID > 0 && presetSlotID > 0)
     {
-        int slotParamId = (presetSlotID - 1) * MAX_PRESET_PARAMS + parameter;
+        int slotParamId = (presetSlotID - 1) * MAX_PRESET_PARAMS + parameter + 1;
         sendNRPN (midiOutput.get(), midiChannelID, slotParamId, value);
     }
 }

@@ -24,8 +24,8 @@ void PluginEditorComponent::resized()
     midiChannelSelector.setBounds (inner.removeFromLeft (100));
     inner.removeFromLeft (7);
     electraSlotSelector.setBounds (inner.removeFromLeft (100));
-    inner.removeFromLeft (7);
     ejectButton.setBounds (inner.removeFromRight (50));
+    paramLabel.setBounds (inner.removeFromRight(40));
 
     if (editor)
     {

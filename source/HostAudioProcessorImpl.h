@@ -1,6 +1,7 @@
 #pragma once
 
 #include "EditorTools.h"
+// #include "PluginEditorComponent.h"
 #include "juce_core/juce_core.h"
 #include "juce_events/juce_events.h"
 #include "juce_gui_basics/juce_gui_basics.h"
@@ -118,6 +119,7 @@ private:
     EditorStyle editorStyle = EditorStyle {};
     bool active = false;
     juce::ScopedMessageBox messageBox;
+    // PluginEditorComponent pluginEditor;
 
     static constexpr const char* innerStateTag = "inner_state";
     static constexpr const char* editorStyleTag = "editor_style";

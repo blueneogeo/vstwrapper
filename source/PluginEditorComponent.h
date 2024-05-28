@@ -5,6 +5,7 @@
 #include "Images.h"
 #include "LookAndFeel.h"
 #include "juce_core/juce_core.h"
+#include "juce_events/juce_events.h"
 #include "juce_gui_basics/juce_gui_basics.h"
 #include <juce_audio_devices/juce_audio_devices.h>
 #include <juce_audio_processors/juce_audio_processors.h>
@@ -78,10 +79,14 @@ public:
             }
         }
 
+        paramLabel.setText("", juce::NotificationType::dontSendNotification);
+        paramLabel.setFont(juce::Font(12));
+        
         midiInputSelector.setLookAndFeel (lookAndFeel.get());
         midiOutputSelector.setLookAndFeel (lookAndFeel.get());
         midiChannelSelector.setLookAndFeel (lookAndFeel.get());
         electraSlotSelector.setLookAndFeel (lookAndFeel.get());
+        paramLabel.setLookAndFeel(lookAndFeel.get());
         ejectButton.setLookAndFeel (lookAndFeel.get());
 
         addAndMakeVisible (editor.get());
@@ -89,6 +94,7 @@ public:
         addAndMakeVisible (midiOutputSelector);
         addAndMakeVisible (midiChannelSelector);
         addAndMakeVisible (electraSlotSelector);
+        addAndMakeVisible (paramLabel);
         addAndMakeVisible (ejectButton);
 
         childBoundsChanged (editor.get());
@@ -126,6 +132,8 @@ public:
             processor->presetSlotID = electraSlotSelector.getSelectedId();
             logToFile("set preset to " + static_cast<juce::String>(processor->presetSlotID));
         };
+
+        // processor->plug
     }
 
     void setScaleFactor (float scale);
@@ -147,6 +155,7 @@ private:
     juce::ComboBox midiOutputSelector;
     juce::ComboBox midiChannelSelector;
     juce::ComboBox electraSlotSelector;
+    juce::Label paramLabel;
     juce::TextButton ejectButton { "Eject" };
     std::unique_ptr<CustomLookAndFeel> lookAndFeel;
 };
