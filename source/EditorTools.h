@@ -6,6 +6,8 @@
 #include <juce_audio_plugin_client/juce_audio_plugin_client.h>
 #include <juce_audio_processors/juce_audio_processors.h>
 
+const bool DEBUG = FALSE;
+
 //==============================================================================
 enum class EditorStyle { thisWindow,
     newWindow };
@@ -39,6 +41,8 @@ inline std::string getPluginPath() {
 
 inline void logToFile(const juce::String& message)
 {
+    if(!DEBUG) return;
+    
     juce::File logFile = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
                          .getChildFile("ElectraLog.txt");
 

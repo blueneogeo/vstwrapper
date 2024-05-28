@@ -4,6 +4,7 @@
 #include "HostAudioProcessorImpl.h"
 #include "Images.h"
 #include "LookAndFeel.h"
+#include "EventBus.h"
 #include "juce_core/juce_core.h"
 #include "juce_events/juce_events.h"
 #include "juce_gui_basics/juce_gui_basics.h"
@@ -133,8 +134,10 @@ public:
             logToFile("set preset to " + static_cast<juce::String>(processor->presetSlotID));
         };
 
-        // processor->plug
+        ParameterEventBus::subscribe([this](int param, int value) { onParameterChanged(param, value); });
     }
+
+    void onParameterChanged(int param, int value);
 
     void setScaleFactor (float scale);
 

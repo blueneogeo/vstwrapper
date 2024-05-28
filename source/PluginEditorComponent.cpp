@@ -1,6 +1,8 @@
 #include "PluginEditorComponent.h"
 #include "EditorTools.h"
+#include "juce_events/juce_events.h"
 #include <memory>
+#include <string>
 
 void PluginEditorComponent::setScaleFactor (float scale)
 {
@@ -25,12 +27,17 @@ void PluginEditorComponent::resized()
     inner.removeFromLeft (7);
     electraSlotSelector.setBounds (inner.removeFromLeft (100));
     ejectButton.setBounds (inner.removeFromRight (50));
-    paramLabel.setBounds (inner.removeFromRight(40));
+    paramLabel.setBounds (inner.removeFromRight(75));
 
     if (editor)
     {
         editor->setBounds (area);
     }
+}
+
+void PluginEditorComponent::onParameterChanged(int param, int value) {
+    std::string text = std::to_string(param + 1) + " - " + std::to_string(value);
+    paramLabel.setText(text, juce::NotificationType::sendNotification);
 }
 
 void PluginEditorComponent::paint (juce::Graphics& g)

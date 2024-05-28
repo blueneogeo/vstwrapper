@@ -1,3 +1,4 @@
+#include "EventBus.h"
 #include "HostAudioProcessorImpl.h"
 #include "EditorTools.h"
 #include "MidiTools.h"
@@ -55,10 +56,13 @@ HostAudioProcessorImpl::HostAudioProcessorImpl()
                         innerParam->setValue (newValue);
                         innerParam->endChangeGesture();
                         isUpdatingParam = false;
+                        // publish the event that a parameter has changed
+                        auto intValue = static_cast<int>(127 * 127 * newValue);
+                        ParameterEventBus::publish(index, intValue);
                         // also inform the Electra One
                         if (midiOutput != nullptr)
                         {
-                            sendOutgoingNRPN(index, static_cast<int>(127 * 127 * newValue));
+                            sendOutgoingNRPN(index, intValue);
                         }
                     }
                 });
@@ -394,12 +398,12 @@ void HostAudioProcessorImpl::audioProcessorParameterChanged (juce::AudioProcesso
 
         param->endChangeGesture();
 
-        // Verify if the value was set correctly.
-        // float updatedValue = param->getValue();
-        // logToFile ("sending param " + juce::String (param->getName (128)) + " - " + juce::String (updatedValue));
+        // publish the event that a parameter has changed
+        auto intValue = static_cast<int>(127 * 127 * newValue);
+        ParameterEventBus::publish(parameterIndex, intValue);
 
         // also inform the Electra One
-        sendOutgoingNRPN (parameterIndex, static_cast<int> (newValue * 127 * 127));
+        sendOutgoingNRPN (parameterIndex, intValue);
 
         isUpdatingParam = false; // Ensure this flag is reset within the lambda
         // });
