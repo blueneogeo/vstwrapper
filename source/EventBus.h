@@ -1,55 +1,42 @@
 #pragma once
 
 #include <functional>
-#include <vector>
-
-#include <functional>
 #include <memory>
 #include <mutex>
-#include <vector>
 
 class ParameterEventBus
 {
 public:
-    using EventCallback = std::function<void (int param, int value)>;
+    using EventCallback = std::function<void(int param, int value)>;
     using CallbackPtr = std::shared_ptr<EventCallback>;
 
-    static CallbackPtr subscribe (EventCallback callback)
+    // Subscribe to the event bus
+    static CallbackPtr subscribe(EventCallback callback)
     {
         auto& instance = getInstance();
-        std::lock_guard<std::mutex> lock (instance.mutex);
-        auto cbPtr = std::make_shared<EventCallback> (callback);
-        instance.listeners.push_back (cbPtr);
+        std::lock_guard<std::mutex> lock(instance.mutex);
+        auto cbPtr = std::make_shared<EventCallback>(std::move(callback));
+        instance.listener = cbPtr;
         return cbPtr;
     }
 
-    static void unsubscribe (CallbackPtr callbackPtr)
+    // Unsubscribe from the event bus (remove all handlers)
+    static void unsubscribe()
     {
         auto& instance = getInstance();
-        std::lock_guard<std::mutex> lock (instance.mutex);
-
-        auto it = std::remove_if (instance.listeners.begin(), instance.listeners.end(), [&callbackPtr] (const std::weak_ptr<EventCallback>& weakCb) {
-            if (auto sharedCb = weakCb.lock())
-            {
-                return sharedCb == callbackPtr;
-            }
-            return false;
-        });
-
-        instance.listeners.erase (it, instance.listeners.end());
+        std::lock_guard<std::mutex> lock(instance.mutex);
+        instance.listener.reset();  // Clear the stored callback
     }
 
-    static void publish (int param, int value)
+    // Publish an event to the subscriber
+    static void publish(int param, int value)
     {
         auto& instance = getInstance();
-        std::lock_guard<std::mutex> lock (instance.mutex);
+        std::lock_guard<std::mutex> lock(instance.mutex);
 
-        for (auto& weakCb : instance.listeners)
+        if (instance.listener && *instance.listener)  // Check if the callback pointer and its target are valid
         {
-            if (auto cb = weakCb.lock())
-            {
-                (*cb) (param, value);
-            }
+            (*instance.listener)(param, value);  // Invoke the callback
         }
     }
 
@@ -62,6 +49,7 @@ private:
         return instance;
     }
 
-    std::vector<std::weak_ptr<EventCallback>> listeners;
-    std::mutex mutex;
+private:
+    CallbackPtr listener;  // Store a single shared_ptr for the listener
+    mutable std::mutex mutex;  // Mutex to protect access to listener
 };

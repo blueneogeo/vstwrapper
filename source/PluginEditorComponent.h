@@ -137,6 +137,10 @@ public:
         ParameterEventBus::subscribe([this](int param, int value) { onParameterChanged(param, value); });
     }
 
+    ~PluginEditorComponent() override {
+        ParameterEventBus::unsubscribe();
+    }
+
     void onParameterChanged(int param, int value);
 
     void setScaleFactor (float scale);
