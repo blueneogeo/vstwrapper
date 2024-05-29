@@ -473,7 +473,7 @@ void HostAudioProcessorImpl::handleIncomingNRPN (int parameterIndex, int value)
     int floor = static_cast<int> (std::floor (static_cast<float> (parameterIndex - 1) / static_cast<float> (MAX_PRESET_PARAMS)));
     int base = floor * MAX_PRESET_PARAMS;
     int parameter = parameterIndex - base - 1;
-    float newValue = static_cast<float> (value) / 128 / 128;
+    float newValue = static_cast<float> (value) / 127 / 127;
 
     // publish the event that a parameter has changed
     auto intValue = static_cast<int>(127 * 127 * newValue);
