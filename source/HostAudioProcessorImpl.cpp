@@ -1,6 +1,6 @@
-#include "EventBus.h"
 #include "HostAudioProcessorImpl.h"
 #include "EditorTools.h"
+#include "EventBus.h"
 #include "MidiTools.h"
 #include "NRPNReceiver.h"
 #include "ParameterChangeListener.h"
@@ -57,12 +57,12 @@ HostAudioProcessorImpl::HostAudioProcessorImpl()
                         innerParam->endChangeGesture();
                         isUpdatingParam = false;
                         // publish the event that a parameter has changed
-                        auto intValue = static_cast<int>(127 * 127 * newValue);
-                        ParameterEventBus::publish(index, intValue);
+                        auto intValue = static_cast<int> (127 * 127 * newValue);
+                        ParameterEventBus::publish (index, intValue);
                         // also inform the Electra One
                         if (midiOutput != nullptr)
                         {
-                            sendOutgoingNRPN(index, intValue);
+                            sendOutgoingNRPN (index, intValue);
                         }
                     }
                 });
@@ -278,14 +278,37 @@ void HostAudioProcessorImpl::setStateInformation (const void* data, int sizeInBy
     }
 }
 
-void HostAudioProcessorImpl::setMidiInput (juce::String deviceID)
+void HostAudioProcessorImpl::clearMidiInput()
 {
-    logToFile ("setting midi input to " + deviceID);
     if (midiInputDeviceID.isNotEmpty())
     {
+        logToFile ("clearing midi input");
         deviceManager.setMidiInputDeviceEnabled (midiInputDeviceID, false);
         deviceManager.removeMidiInputDeviceCallback (midiInputDeviceID, this);
+        midiInputDeviceID = "";
     }
+}
+
+void HostAudioProcessorImpl::clearMidiOutput()
+{
+    if (midiOutputDeviceID.isNotEmpty() && midiOutput != nullptr)
+    {
+        logToFile ("clearing midi output");
+        midiOutput->clearAllPendingMessages();
+        midiOutput = nullptr;
+        midiOutputDeviceID = "";
+    }
+}
+
+void HostAudioProcessorImpl::setMidiInput (juce::String deviceID)
+{
+
+    if (deviceID == midiInputDeviceID)
+        return;
+
+    logToFile ("setting midi input to " + deviceID);
+
+    clearMidiInput();
 
     deviceManager.setMidiInputDeviceEnabled (deviceID, true);
     deviceManager.addMidiInputDeviceCallback (deviceID, this);
@@ -298,11 +321,12 @@ void HostAudioProcessorImpl::setMidiInput (juce::String deviceID)
 
 void HostAudioProcessorImpl::setMidiOutput (juce::String deviceID)
 {
+    if (deviceID == midiOutputDeviceID)
+        return;
+
     logToFile ("setting midi output to " + deviceID);
-    if (midiOutputDeviceID.isNotEmpty() && midiOutput != nullptr)
-    {
-        midiOutput->clearAllPendingMessages();
-    }
+
+    clearMidiOutput();
 
     auto outDevice = juce::MidiOutput::openDevice (deviceID);
     if (outDevice == nullptr)
@@ -378,7 +402,7 @@ void HostAudioProcessorImpl::audioProcessorParameterChanged (juce::AudioProcesso
     int parameterIndex,
     float newValue)
 {
-    logToFile ("incoming param change " + juce::String (parameterIndex) + " - " + juce::String (newValue));
+    // logToFile ("incoming param change " + juce::String (parameterIndex) + " - " + juce::String (newValue));
     auto params = this->getParameters();
     if (parameterIndex < params.size() && !isUpdatingParam)
     {
@@ -399,8 +423,8 @@ void HostAudioProcessorImpl::audioProcessorParameterChanged (juce::AudioProcesso
         param->endChangeGesture();
 
         // publish the event that a parameter has changed
-        auto intValue = static_cast<int>(127 * 127 * newValue);
-        ParameterEventBus::publish(parameterIndex, intValue);
+        auto intValue = static_cast<int> (127 * 127 * newValue);
+        ParameterEventBus::publish (parameterIndex, intValue);
 
         // also inform the Electra One
         sendOutgoingNRPN (parameterIndex, intValue);
@@ -420,10 +444,12 @@ void HostAudioProcessorImpl::clearPlugin()
     inner = nullptr;
     pluginParams = nullptr;
 
+    logToFile("clearing parameters");
+    
     if (auto settings = appProperties.getUserSettings())
     {
         settings->removeValue ("params");
-        settings->saveIfNeeded();
+        settings->save();
     }
 
     juce::NullCheckedInvocation::invoke (pluginChanged);
@@ -476,8 +502,8 @@ void HostAudioProcessorImpl::handleIncomingNRPN (int parameterIndex, int value)
     float newValue = static_cast<float> (value) / 127 / 127;
 
     // publish the event that a parameter has changed
-    auto intValue = static_cast<int>(127 * 127 * newValue);
-    ParameterEventBus::publish(parameterIndex - 1, intValue);
+    auto intValue = static_cast<int> (127 * 127 * newValue);
+    ParameterEventBus::publish (parameterIndex - 1, intValue);
 
     auto params = this->getParameters();
     if (parameter < params.size() && !isUpdatingParam)

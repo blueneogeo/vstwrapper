@@ -6,7 +6,7 @@
 #include <juce_audio_plugin_client/juce_audio_plugin_client.h>
 #include <juce_audio_processors/juce_audio_processors.h>
 
-const bool DEBUG = FALSE;
+const bool DEBUG = TRUE;
 
 //==============================================================================
 enum class EditorStyle { thisWindow,
@@ -27,24 +27,27 @@ inline void doLayout (juce::Component* main, juce::Component& bottom, int bottom
     grid.performLayout (bounds);
 }
 
-inline std::string getPluginPath() {
+inline std::string getPluginPath()
+{
     uint32_t size = 1024;
-    std::vector<char> buffer(size);
-    
-    if (_NSGetExecutablePath(buffer.data(), &size) == -1) {
-        buffer.resize(size);
-        _NSGetExecutablePath(buffer.data(), &size);
+    std::vector<char> buffer (size);
+
+    if (_NSGetExecutablePath (buffer.data(), &size) == -1)
+    {
+        buffer.resize (size);
+        _NSGetExecutablePath (buffer.data(), &size);
     }
-    
-    return std::string(buffer.data());
+
+    return std::string (buffer.data());
 }
 
-inline void logToFile(const juce::String& message)
+inline void logToFile (const juce::String& message)
 {
-    if(!DEBUG) return;
-    
-    juce::File logFile = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
-                         .getChildFile("ElectraLog.txt");
+    if (!DEBUG)
+        return;
 
-    logFile.appendText(message + "\n");
+    juce::File logFile = juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                             .getChildFile ("ElectraLog.txt");
+
+    logFile.appendText (message + "\n");
 }

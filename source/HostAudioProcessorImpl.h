@@ -64,6 +64,10 @@ public:
 
     void setMidiInput(juce::String deviceID);
 
+    void clearMidiInput();
+
+    void clearMidiOutput();
+
     void setMidiOutput(juce::String deviceID);
     
     double getTailLengthSeconds() const final { return 0.0; }

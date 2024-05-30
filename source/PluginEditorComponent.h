@@ -1,10 +1,10 @@
 #pragma once
 
 #include "EditorTools.h"
+#include "EventBus.h"
 #include "HostAudioProcessorImpl.h"
 #include "Images.h"
 #include "LookAndFeel.h"
-#include "EventBus.h"
 #include "juce_core/juce_core.h"
 #include "juce_events/juce_events.h"
 #include "juce_gui_basics/juce_gui_basics.h"
@@ -12,13 +12,15 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <memory>
 
-class PluginEditorComponent final : public juce::Component
+class PluginEditorComponent final : public juce::Component, private juce::Timer
 {
 public:
     template <typename Callback>
     PluginEditorComponent (HostAudioProcessorImpl* hostAudioProcessor, std::unique_ptr<juce::AudioProcessorEditor> editorIn, Callback&& onClose)
         : processor (hostAudioProcessor), editor (std::move (editorIn))
     {
+        isRestartRequired = !processor->appProperties.getUserSettings()->getXmlValue ("params");
+
         auto colors = juce::LookAndFeel_V4::getDarkColourScheme();
         auto textColor = juce::Colour::fromRGB (240, 240, 240);
         auto outlineColor = juce::Colour::fromRGB (70, 70, 70);
@@ -32,70 +34,73 @@ public:
         juce::Rectangle<float> targetBounds (0, 0, 60, 20);
         svgLogo->setTransformToFit (targetBounds, juce::RectanglePlacement::centred);
 
-        auto midiInputs = juce::MidiInput::getAvailableDevices();
-        midiInputSelector.setText ("Electra Midi IN");
-        for (int i = 0; i < midiInputs.size(); i++)
-        {
-            auto device = midiInputs[i];
-            juce::String deviceName = device.name;
-            auto deviceID = device.identifier;
-            midiInputSelector.addItem (deviceName, i + 1);
-            if (deviceID == processor->midiInputDeviceID)
-            {
-                midiInputSelector.setSelectedItemIndex (i);
-            }
-        }
+        // auto midiInputs = juce::MidiInput::getAvailableDevices();
+        // midiInputSelector.setText ("Electra Midi IN");
+        // for (int i = 0; i < midiInputs.size(); i++)
+        // {
+        //     auto device = midiInputs[i];
+        //     juce::String deviceName = device.name;
+        //     auto deviceID = device.identifier;
+        //     midiInputSelector.addItem (deviceName, i + 1);
+        //     if (deviceID == processor->midiInputDeviceID)
+        //     {
+        //         midiInputSelector.setSelectedItemIndex (i);
+        //     }
+        // }
 
-        auto midiOutputs = juce::MidiOutput::getAvailableDevices();
-        midiOutputSelector.setText ("Electra Midi OUT");
-        for (int i = 0; i < midiOutputs.size(); i++)
-        {
-            auto device = midiOutputs[i];
-            juce::String deviceName = device.name;
-            auto deviceID = device.identifier;
-            midiOutputSelector.addItem (deviceName, i + 1);
-            if (deviceID == processor->midiOutputDeviceID)
-            {
-                midiOutputSelector.setSelectedItemIndex (i);
-            }
-        }
+        // auto midiOutputs = juce::MidiOutput::getAvailableDevices();
+        // midiOutputSelector.setText ("Electra Midi OUT");
+        // for (int i = 0; i < midiOutputs.size(); i++)
+        // {
+        //     auto device = midiOutputs[i];
+        //     juce::String deviceName = device.name;
+        //     auto deviceID = device.identifier;
+        //     midiOutputSelector.addItem (deviceName, i + 1);
+        //     if (deviceID == processor->midiOutputDeviceID)
+        //     {
+        //         midiOutputSelector.setSelectedItemIndex (i);
+        //     }
+        // }
 
-        midiChannelSelector.setText ("Channel");
-        for (int i = 1; i <= 16; i++)
+        midiChannelSelector.setText ("bank");
+        for (int i = 1; i <= 6; i++)
         {
-            midiChannelSelector.addItem ("channel " + static_cast<juce::String> (i), i);
+            midiChannelSelector.addItem ("bank " + static_cast<juce::String> (i), i);
             if (i == processor->midiChannelID)
             {
-                midiChannelSelector.setSelectedId(i);
+                midiChannelSelector.setSelectedId (i);
             }
         }
 
-        electraSlotSelector.setText ("Slot");
+        electraSlotSelector.setText ("slot");
         for (int i = 1; i <= 12; i++)
         {
-            electraSlotSelector.addItem ("preset " + static_cast<juce::String> (i), i);
+            electraSlotSelector.addItem ("slot " + static_cast<juce::String> (i), i);
             if (i == processor->presetSlotID)
             {
                 electraSlotSelector.setSelectedId (i);
             }
         }
 
-        paramLabel.setText("", juce::NotificationType::dontSendNotification);
-        paramLabel.setFont(juce::Font(12));
-        
+        statusLabel.setText ("", juce::NotificationType::dontSendNotification);
+        statusLabel.setFont (juce::Font (12));
+
         midiInputSelector.setLookAndFeel (lookAndFeel.get());
         midiOutputSelector.setLookAndFeel (lookAndFeel.get());
         midiChannelSelector.setLookAndFeel (lookAndFeel.get());
         electraSlotSelector.setLookAndFeel (lookAndFeel.get());
-        paramLabel.setLookAndFeel(lookAndFeel.get());
+        statusLabel.setLookAndFeel (lookAndFeel.get());
         ejectButton.setLookAndFeel (lookAndFeel.get());
 
         addAndMakeVisible (editor.get());
-        addAndMakeVisible (midiInputSelector);
-        addAndMakeVisible (midiOutputSelector);
-        addAndMakeVisible (midiChannelSelector);
-        addAndMakeVisible (electraSlotSelector);
-        addAndMakeVisible (paramLabel);
+        // addAndMakeVisible (midiInputSelector);
+        // addAndMakeVisible (midiOutputSelector);
+        if (!isRestartRequired)
+        {
+            addAndMakeVisible (midiChannelSelector);
+            addAndMakeVisible (electraSlotSelector);
+        }
+        addAndMakeVisible (statusLabel);
         addAndMakeVisible (ejectButton);
 
         childBoundsChanged (editor.get());
@@ -126,22 +131,26 @@ public:
 
         midiChannelSelector.onChange = [this] {
             processor->midiChannelID = midiChannelSelector.getSelectedId();
-            logToFile("set midi channel to " + static_cast<juce::String>(processor->midiChannelID));
+            logToFile ("set midi channel to " + static_cast<juce::String> (processor->midiChannelID));
         };
 
         electraSlotSelector.onChange = [this] {
             processor->presetSlotID = electraSlotSelector.getSelectedId();
-            logToFile("set preset to " + static_cast<juce::String>(processor->presetSlotID));
+            logToFile ("set preset to " + static_cast<juce::String> (processor->presetSlotID));
         };
 
-        ParameterEventBus::subscribe([this](int param, int value) { onParameterChanged(param, value); });
+        ParameterEventBus::subscribe ([this] (int param, int value) { onParameterChanged (param, value); });
+
+        startTimer (3000);
     }
 
-    ~PluginEditorComponent() override {
+    ~PluginEditorComponent() override
+    {
+        stopTimer();
         ParameterEventBus::unsubscribe();
     }
 
-    void onParameterChanged(int param, int value);
+    void onParameterChanged (int param, int value);
 
     void setScaleFactor (float scale);
 
@@ -156,13 +165,16 @@ private:
 
     static constexpr auto toolbarHeight = 20;
 
+    bool isRestartRequired = false;
     std::unique_ptr<juce::AudioProcessorEditor> editor;
     std::unique_ptr<juce::Drawable> svgLogo;
     juce::ComboBox midiInputSelector;
     juce::ComboBox midiOutputSelector;
     juce::ComboBox midiChannelSelector;
     juce::ComboBox electraSlotSelector;
-    juce::Label paramLabel;
+    juce::Label statusLabel;
     juce::TextButton ejectButton { "Eject" };
     std::unique_ptr<CustomLookAndFeel> lookAndFeel;
+
+    void timerCallback() override;
 };

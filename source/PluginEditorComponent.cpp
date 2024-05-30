@@ -17,17 +17,46 @@ void PluginEditorComponent::resized()
     auto toolbar = area.removeFromTop (toolbarHeight + 10).reduced (7, 5);
     auto inner = toolbar.removeFromTop (toolbarHeight);
 
-    // electraLabel.setBounds(inner.removeFromLeft(100));
     inner.removeFromLeft (80); // Electra One logo space
-    midiInputSelector.setBounds (inner.removeFromLeft (140));
-    inner.removeFromLeft (7);
-    midiOutputSelector.setBounds (inner.removeFromLeft (140));
-    inner.removeFromLeft (7);
-    midiChannelSelector.setBounds (inner.removeFromLeft (100));
-    inner.removeFromLeft (7);
-    electraSlotSelector.setBounds (inner.removeFromLeft (100));
+
+    // disable the input selectors for now
+    // midiInputSelector.setBounds (inner.removeFromLeft (140));
+    // inner.removeFromLeft (7);
+    // midiOutputSelector.setBounds (inner.removeFromLeft (140));
+    // inner.removeFromLeft (7);
+
+    if (!isRestartRequired)
+    {
+        midiChannelSelector.setBounds (inner.removeFromLeft (100));
+        inner.removeFromLeft (7);
+        electraSlotSelector.setBounds (inner.removeFromLeft (100));
+        inner.removeFromLeft (7);
+    }
+
+    statusLabel.setBounds (inner.removeFromLeft (120));
     ejectButton.setBounds (inner.removeFromRight (50));
-    paramLabel.setBounds (inner.removeFromRight(75));
+
+    auto isElectraFound = processor->midiInputDeviceID.isNotEmpty() && processor->midiOutputDeviceID.isNotEmpty();
+
+    auto status = "";
+
+    if (isElectraFound)
+    {
+        if (isRestartRequired)
+        {
+            status = "Please restart this plugin";
+        }
+        else
+        {
+            status = "";
+        }
+    }
+    else
+    {
+        status = "Electra not found";
+    }
+
+    statusLabel.setText (status, juce::NotificationType::dontSendNotification);
 
     if (editor)
     {
@@ -35,16 +64,71 @@ void PluginEditorComponent::resized()
     }
 }
 
-void PluginEditorComponent::onParameterChanged(int param, int value) {
-    std::string text = std::to_string(param + 1) + " - " + std::to_string(value);
-    paramLabel.setText(text, juce::NotificationType::sendNotification);
+// periodically check for the Electra controller input and output
+void PluginEditorComponent::timerCallback()
+{
+    const auto MIDI_IN = "Electra Controller Electra Port 2";
+    const auto MIDI_OUT = "Electra Controller Electra Port 2";
+
+    auto midiInputs = juce::MidiInput::getAvailableDevices();
+    juce::String inDevice = "";
+    for (int i = 0; i < midiInputs.size(); i++)
+    {
+        auto device = midiInputs[i];
+        juce::String deviceName = device.name;
+        if (deviceName.equalsIgnoreCase (MIDI_IN))
+        {
+            inDevice = device.identifier;
+        }
+    }
+
+    if (inDevice.isEmpty())
+    {
+        processor->clearMidiInput();
+    }
+    else
+    {
+        processor->setMidiInput (inDevice);
+    }
+
+    auto midiOutputs = juce::MidiOutput::getAvailableDevices();
+    juce::String outDevice = "";
+    for (int i = 0; i < midiOutputs.size(); i++)
+    {
+        auto device = midiOutputs[i];
+        juce::String deviceName = device.name;
+        if (deviceName.equalsIgnoreCase (MIDI_OUT))
+        {
+            outDevice = device.identifier;
+        }
+    }
+
+    if (outDevice.isEmpty())
+    {
+        processor->clearMidiOutput();
+    }
+    else
+    {
+        processor->setMidiOutput (outDevice);
+    }
+
+    resized();
+}
+
+void PluginEditorComponent::onParameterChanged (int param, int value)
+{
+    if (isRestartRequired)
+        return;
+
+    std::string text = std::to_string (param + 1) + " - " + std::to_string (value);
+    statusLabel.setText (text, juce::NotificationType::sendNotification);
 }
 
 void PluginEditorComponent::paint (juce::Graphics& g)
 {
     if (svgLogo)
     {
-        svgLogo->drawAt(g, 5, 5, 1);
+        svgLogo->drawAt (g, 5, 5, 1);
     }
 }
 
