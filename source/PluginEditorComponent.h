@@ -32,9 +32,11 @@ public:
         auto colors = juce::LookAndFeel_V4::getDarkColourScheme();
         auto textColor = juce::Colour::fromRGB (240, 240, 240);
         auto outlineColor = juce::Colour::fromRGB (70, 70, 70);
+
         colors.setUIColour (juce::LookAndFeel_V4::ColourScheme::UIColour::defaultText, textColor);
         colors.setUIColour (juce::LookAndFeel_V4::ColourScheme::UIColour::outline, outlineColor);
         colors.setUIColour (juce::LookAndFeel_V4::ColourScheme::UIColour::menuText, textColor);
+
         lookAndFeel = std::make_unique<CustomLookAndFeel> (12.0f, colors);
 
         auto svg = juce::parseXML (electraOneSVGLogo);

@@ -8,7 +8,6 @@
 #include "juce_core/juce_core.h"
 #include <memory>
 
-
 HostAudioProcessorImpl::HostAudioProcessorImpl()
     : AudioProcessor (BusesProperties().withInput ("Input", juce::AudioChannelSet::stereo(), true).withOutput ("Output", juce::AudioChannelSet::stereo(), true))
 {
@@ -57,9 +56,11 @@ HostAudioProcessorImpl::HostAudioProcessorImpl()
                         innerParam->setValue (newValue);
                         innerParam->endChangeGesture();
                         isUpdatingParam = false;
-                        // publish the event that a parameter has changed
+                        // publish the event that a parameter has changed for the wrapper interface to show
                         auto intValue = static_cast<int> (127 * 127 * newValue);
                         ParameterEventBus::publish (index, intValue);
+                        // inform the electra one
+                        sendOutgoingNRPN (index, intValue);
                     }
                 });
 
@@ -234,29 +235,29 @@ void HostAudioProcessorImpl::setStateInformation (const void* data, int sizeInBy
         // Restore Electra/MIDI connection settings
         if (auto midiNode = xml->getChildByName ("midi"))
         {
-            auto in = midiNode->getStringAttribute ("in");
-            logToFile ("input >" + in + "<");
-            if (in.isNotEmpty())
-            {
-                logToFile ("input not empty, setting");
-                setMidiInput (in);
-            }
-            else
-            {
-                logToFile ("midi in not set");
-            }
+            // auto in = midiNode->getStringAttribute ("in");
+            // logToFile ("input >" + in + "<");
+            // if (in.isNotEmpty())
+            // {
+            //     logToFile ("input not empty, setting");
+            //     setMidiInput (in);
+            // }
+            // else
+            // {
+            //     logToFile ("midi in not set");
+            // }
 
-            auto out = midiNode->getStringAttribute ("out");
-            logToFile ("output >" + out + "<");
-            if (out.isNotEmpty())
-            {
-                logToFile ("output not empty, setting");
-                setMidiOutput (out);
-            }
-            else
-            {
-                logToFile ("midi out not set");
-            }
+            // auto out = midiNode->getStringAttribute ("out");
+            // logToFile ("output >" + out + "<");
+            // if (out.isNotEmpty())
+            // {
+            //     logToFile ("output not empty, setting");
+            //     setMidiOutput (out);
+            // }
+            // else
+            // {
+            //     logToFile ("midi out not set");
+            // }
 
             auto channel = midiNode->getIntAttribute ("channel");
             if (channel > 0)
@@ -299,10 +300,6 @@ void HostAudioProcessorImpl::clearMidiOutput()
 
 void HostAudioProcessorImpl::setMidiInput (juce::String deviceID)
 {
-
-    if (deviceID == midiInputDeviceID)
-        return;
-
     logToFile ("setting midi input to " + deviceID);
 
     clearMidiInput();
@@ -318,9 +315,6 @@ void HostAudioProcessorImpl::setMidiInput (juce::String deviceID)
 
 void HostAudioProcessorImpl::setMidiOutput (juce::String deviceID)
 {
-    if (deviceID == midiOutputDeviceID)
-        return;
-
     logToFile ("setting midi output to " + deviceID);
 
     clearMidiOutput();
@@ -337,12 +331,13 @@ void HostAudioProcessorImpl::setMidiOutput (juce::String deviceID)
     midiOutput = std::move (outDevice);
     midiOutputDeviceID = deviceID;
 
-    // send out all current parameter values
-    auto params = getParameters();
-    for(int i = 0; i < params.size(); i++) {
-        auto param = params[i];
-        auto value = static_cast<int> (127 * 127 * param->getValue());
-        sendOutgoingNRPN(i + 1, value);
+    logToFile("params: " + static_cast<juce::String>(pluginParams.size()));
+    // Send plugin params to the electra
+    for (int i = 0; i < pluginParams.size(); i++)
+    {
+        auto param = pluginParams[i];
+        auto value = static_cast<int> (param->getValue() * 127 * 127);
+        sendOutgoingNRPN (i, value);
     }
 }
 
@@ -394,15 +389,19 @@ void HostAudioProcessorImpl::setNewPlugin (const juce::PluginDescription& pd, Ed
         auto pluginParameters = inner->getParameters();
         auto wrapperParams = getParameters();
 
-        if(pluginParameters.size() != wrapperParams.size()) {
-            logToFile("Incompatible parameters, not setting");
-            return;
+        if (pluginParameters.size() == wrapperParams.size())
+        {
+            for (int i = 0; i < pluginParameters.size(); i++)
+            {
+                auto pluginParam = pluginParameters[i];
+                auto value = static_cast<int> (pluginParam->getValue() * 127 * 127);
+                handleIncomingNRPN (i + 1, value);
+            }
         }
-
-        for(int i = 0; i < pluginParameters.size(); i++) {
-            auto pluginParam = pluginParameters[i];
-            auto value = static_cast<int>(pluginParam->getValue() * 127 * 127);
-            handleIncomingNRPN(i+1, value);    
+        else
+        {
+            logToFile ("Incompatible parameters, not setting");
+            return;
         }
     };
 
@@ -463,8 +462,8 @@ void HostAudioProcessorImpl::clearPlugin()
     inner = nullptr;
     pluginParams = nullptr;
 
-    logToFile("clearing parameters");
-    
+    logToFile ("clearing parameters");
+
     if (auto settings = appProperties.getUserSettings())
     {
         settings->removeValue ("params");
@@ -520,7 +519,8 @@ void HostAudioProcessorImpl::handleIncomingNRPN (int parameterIndex, int value)
     int parameter = parameterIndex - base - 1;
     float newValue = static_cast<float> (value) / 127 / 127;
 
-    if(parameter > getParameters().size()) return;
+    if (parameter > getParameters().size())
+        return;
 
     // publish the event that a parameter has changed
     auto intValue = static_cast<int> (127 * 127 * newValue);
@@ -550,12 +550,14 @@ void HostAudioProcessorImpl::handleIncomingNRPN (int parameterIndex, int value)
     }
 }
 
+// Send Parameter to the ElectraOne. Parameter is 0-indexed.
 void HostAudioProcessorImpl::sendOutgoingNRPN (int parameter, int value)
 {
     if (midiOutput != nullptr && midiChannelID > 0 && presetSlotID > 0)
     {
         int slotParamId = (presetSlotID - 1) * MAX_PRESET_PARAMS + parameter + 1;
         sendNRPN (midiOutput.get(), midiChannelID, slotParamId, value);
+        logToFile("sending " + static_cast<juce::String>(slotParamId) + " : " + static_cast<juce::String>(value));
     }
 }
 

@@ -74,6 +74,7 @@ void PluginEditorComponent::timerCallback()
     const auto MIDI_IN = "Electra Controller Electra Port 2";
     const auto MIDI_OUT = "Electra Controller Electra Port 2";
 
+    // find the inDevice for the MIDI_IN, if it is available
     auto midiInputs = juce::MidiInput::getAvailableDevices();
     juce::String inDevice = "";
     for (int i = 0; i < midiInputs.size(); i++)
@@ -86,15 +87,17 @@ void PluginEditorComponent::timerCallback()
         }
     }
 
+    // update the processor midi input if necessary
     if (inDevice.isEmpty())
     {
         processor->clearMidiInput();
     }
-    else
+    else if (inDevice != processor->midiInputDeviceID)
     {
         processor->setMidiInput (inDevice);
     }
 
+    // find the outDevice for the MIDI_OUT, if it is available
     auto midiOutputs = juce::MidiOutput::getAvailableDevices();
     juce::String outDevice = "";
     for (int i = 0; i < midiOutputs.size(); i++)
@@ -107,11 +110,12 @@ void PluginEditorComponent::timerCallback()
         }
     }
 
+    // update the processor midi output if necessary
     if (outDevice.isEmpty())
     {
         processor->clearMidiOutput();
     }
-    else
+    else if (outDevice != processor->midiOutputDeviceID)
     {
         processor->setMidiOutput (outDevice);
     }
