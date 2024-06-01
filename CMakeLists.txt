@@ -12,7 +12,9 @@ include(PamplejuceMacOS)
 # This is the internal name of the project and the name of JUCE's shared code target
 # Note: This cannot have spaces (it may be 2024, but you can't have it all!)
 # Worry not, JUCE's PRODUCT_NAME can have spaces (and is what DAWs display)
-set(PROJECT_NAME "ElectraOne")
+if(NOT DEFINED PROJECT_NAME)
+    set(PROJECT_NAME "ElectraOne")
+endif()
 
 # Worry not, JUCE's PRODUCT_NAME can have spaces (and is what DAWs will display)
 # You can also just have it be the same thing as PROJECT_NAME
@@ -20,9 +22,20 @@ set(PROJECT_NAME "ElectraOne")
 #   set(PROJECT_NAME "MyPlugin_v${MAJOR_VERSION}")
 # Doing so enables major versions to show up in IDEs and DAWs as separate plugins
 # allowing you to change parameters and behavior without breaking existing user projects
-set(PRODUCT_NAME "ElectraOne")
+if(NOT DEFINED PROJECT_NAME)
+    set(PROJECT_NAME "ElectraOne")
+endif()
 set(COMPANY_NAME "Sagittarian")
-set(BUNDLE_ID "com.sagittarian.electravst3")
+set(BUNDLE_ID "com.sagittarian.vst.${PROJECT_NAME}")
+
+
+if(NOT DEFINED BANK)
+    set(BANK 0)
+endif()
+
+if(NOT DEFINED SLOT)
+    set(SLOT 0)
+endif()
 
 # juce_set_vst3_sdk_path("/Users/christian/development/VST_SDK/vst3sdk")
 
@@ -123,8 +136,10 @@ target_compile_definitions(SharedCode
     VERSION="${CURRENT_VERSION}"
 
     # JucePlugin_Name is for some reason doesn't use the nicer PRODUCT_NAME
-    PRODUCT_NAME_WITHOUT_VERSION="ElectraOne"
+    PRODUCT_NAME_WITHOUT_VERSION="${PRODUCT_NAME}"
 )
+
+add_definitions(-DBANK=${BANK} -DSLOT=${SLOT} -DPRODUCT_NAME="${PROJECT_NAME}")
 
 # Link to any other modules you added (with juce_add_module) here!
 # Usually JUCE modules must have PRIVATE visibility

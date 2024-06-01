@@ -8,6 +8,7 @@
 #include "juce_core/juce_core.h"
 #include <memory>
 
+
 HostAudioProcessorImpl::HostAudioProcessorImpl()
     : AudioProcessor (BusesProperties().withInput ("Input", juce::AudioChannelSet::stereo(), true).withOutput ("Output", juce::AudioChannelSet::stereo(), true))
 {
@@ -59,11 +60,6 @@ HostAudioProcessorImpl::HostAudioProcessorImpl()
                         // publish the event that a parameter has changed
                         auto intValue = static_cast<int> (127 * 127 * newValue);
                         ParameterEventBus::publish (index, intValue);
-                        // also inform the Electra One
-                        if (midiOutput != nullptr)
-                        {
-                            sendOutgoingNRPN (index, intValue);
-                        }
                     }
                 });
 
@@ -235,6 +231,7 @@ void HostAudioProcessorImpl::setStateInformation (const void* data, int sizeInBy
             (EditorStyle) xml->getIntAttribute (editorStyleTag, 0),
             innerState);
 
+        // Restore Electra/MIDI connection settings
         if (auto midiNode = xml->getChildByName ("midi"))
         {
             auto in = midiNode->getStringAttribute ("in");
@@ -339,6 +336,14 @@ void HostAudioProcessorImpl::setMidiOutput (juce::String deviceID)
     logToFile (outDevice->getName());
     midiOutput = std::move (outDevice);
     midiOutputDeviceID = deviceID;
+
+    // send out all current parameter values
+    auto params = getParameters();
+    for(int i = 0; i < params.size(); i++) {
+        auto param = params[i];
+        auto value = static_cast<int> (127 * 127 * param->getValue());
+        sendOutgoingNRPN(i + 1, value);
+    }
 }
 
 void HostAudioProcessorImpl::setNewPlugin (const juce::PluginDescription& pd, EditorStyle where, const juce::MemoryBlock& mb)
@@ -384,6 +389,21 @@ void HostAudioProcessorImpl::setNewPlugin (const juce::PluginDescription& pd, Ed
         }
 
         juce::NullCheckedInvocation::invoke (pluginChanged);
+
+        // Set DAW params based on the wrapped plugin
+        auto pluginParameters = inner->getParameters();
+        auto wrapperParams = getParameters();
+
+        if(pluginParameters.size() != wrapperParams.size()) {
+            logToFile("Incompatible parameters, not setting");
+            return;
+        }
+
+        for(int i = 0; i < pluginParameters.size(); i++) {
+            auto pluginParam = pluginParameters[i];
+            auto value = static_cast<int>(pluginParam->getValue() * 127 * 127);
+            handleIncomingNRPN(i+1, value);    
+        }
     };
 
     pluginFormatManager.createPluginInstanceAsync (pd, getSampleRate(), getBlockSize(), callback);
@@ -430,7 +450,6 @@ void HostAudioProcessorImpl::audioProcessorParameterChanged (juce::AudioProcesso
         sendOutgoingNRPN (parameterIndex, intValue);
 
         isUpdatingParam = false; // Ensure this flag is reset within the lambda
-        // });
     }
 }
 
@@ -494,12 +513,14 @@ void HostAudioProcessorImpl::handleIncomingMidiMessage (juce::MidiInput* source,
 
 void HostAudioProcessorImpl::handleIncomingNRPN (int parameterIndex, int value)
 {
-    logToFile ("incoming nrpm: " + static_cast<juce::String> (parameterIndex) + " - " + static_cast<juce::String> (value));
+    // logToFile ("incoming nrpm: " + static_cast<juce::String> (parameterIndex) + " - " + static_cast<juce::String> (value));
 
     int floor = static_cast<int> (std::floor (static_cast<float> (parameterIndex - 1) / static_cast<float> (MAX_PRESET_PARAMS)));
     int base = floor * MAX_PRESET_PARAMS;
     int parameter = parameterIndex - base - 1;
     float newValue = static_cast<float> (value) / 127 / 127;
+
+    if(parameter > getParameters().size()) return;
 
     // publish the event that a parameter has changed
     auto intValue = static_cast<int> (127 * 127 * newValue);

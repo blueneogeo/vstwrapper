@@ -12,6 +12,14 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <memory>
 
+#ifndef BANK
+#define BANK 0
+#endif
+
+#ifndef SLOT
+#define SLOT 0
+#endif
+
 class PluginEditorComponent final : public juce::Component, private juce::Timer
 {
 public:
@@ -95,7 +103,7 @@ public:
         addAndMakeVisible (editor.get());
         // addAndMakeVisible (midiInputSelector);
         // addAndMakeVisible (midiOutputSelector);
-        if (!isRestartRequired)
+        if (!isRestartRequired && BANK == 0 && SLOT == 0)
         {
             addAndMakeVisible (midiChannelSelector);
             addAndMakeVisible (electraSlotSelector);
@@ -139,6 +147,11 @@ public:
             logToFile ("set preset to " + static_cast<juce::String> (processor->presetSlotID));
         };
 
+        if(BANK > 0 && SLOT > 0) {
+            processor->midiChannelID = BANK;
+            processor->presetSlotID = SLOT;
+        }
+
         ParameterEventBus::subscribe ([this] (int param, int value) { onParameterChanged (param, value); });
 
         startTimer (3000);
@@ -166,6 +179,7 @@ private:
     static constexpr auto toolbarHeight = 20;
 
     bool isRestartRequired = false;
+    bool isMidiChecked = false;
     std::unique_ptr<juce::AudioProcessorEditor> editor;
     std::unique_ptr<juce::Drawable> svgLogo;
     juce::ComboBox midiInputSelector;

@@ -11,6 +11,10 @@
 #include <memory>
 #include "NRPNReceiver.h"
 
+#ifndef PRODUCT_NAME
+#define PRODUCT_NAME "ElectraOne"
+#endif
+
 class HostAudioProcessorImpl : public juce::AudioProcessor,
                                public juce::AudioProcessorListener,
                                private juce::FocusChangeListener,
@@ -56,7 +60,7 @@ public:
 
     juce::AudioProcessorEditor* createEditor() override { return nullptr; }
 
-    const juce::String getName() const final { return "Electra One"; }
+    const juce::String getName() const final { return PRODUCT_NAME; }
 
     bool acceptsMidi() const final { return true; }
 

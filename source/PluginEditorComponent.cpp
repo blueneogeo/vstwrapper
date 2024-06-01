@@ -25,7 +25,7 @@ void PluginEditorComponent::resized()
     // midiOutputSelector.setBounds (inner.removeFromLeft (140));
     // inner.removeFromLeft (7);
 
-    if (!isRestartRequired)
+    if (!isRestartRequired && BANK == 0 && SLOT == 0)
     {
         midiChannelSelector.setBounds (inner.removeFromLeft (100));
         inner.removeFromLeft (7);
@@ -38,13 +38,17 @@ void PluginEditorComponent::resized()
 
     auto isElectraFound = processor->midiInputDeviceID.isNotEmpty() && processor->midiOutputDeviceID.isNotEmpty();
 
-    auto status = "";
+    juce::String status = "";
 
-    if (isElectraFound)
+    if (isRestartRequired)
     {
-        if (isRestartRequired)
+        status = "Please restart this plugin";
+    }
+    else if (isElectraFound || !isMidiChecked)
+    {
+        if (BANK > 0 && SLOT > 0)
         {
-            status = "Please restart this plugin";
+            status = "bank " + std::to_string (BANK) + " slot " + std::to_string (SLOT);
         }
         else
         {
@@ -113,6 +117,8 @@ void PluginEditorComponent::timerCallback()
     }
 
     resized();
+
+    isMidiChecked = true;
 }
 
 void PluginEditorComponent::onParameterChanged (int param, int value)
