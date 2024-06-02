@@ -39,7 +39,7 @@ HostAudioProcessorImpl::HostAudioProcessorImpl()
 
     pluginFormatManager.addDefaultFormats();
 
-    pluginList.addToBlacklist("com.sagittarian.vst.ElectraB4S3");
+    // pluginList.addToBlacklist("ElectraOne bank 1 slot 1");
 
     if (auto savedPluginList = pluginProperties.getUserSettings()->getXmlValue ("pluginList"))
         pluginList.recreateFromXml (*savedPluginList);
@@ -357,6 +357,8 @@ void HostAudioProcessorImpl::setMidiOutput (juce::String deviceID)
 
 void HostAudioProcessorImpl::setNewPlugin (const juce::PluginDescription& pd, EditorStyle where, const juce::MemoryBlock& mb)
 {
+    logToFile("Loading plugin id: " + pd.fileOrIdentifier);
+
     const juce::ScopedLock sl (innerMutex);
 
     const auto callback = [this, where, mb] (std::unique_ptr<juce::AudioPluginInstance> instance, const juce::String& error) {

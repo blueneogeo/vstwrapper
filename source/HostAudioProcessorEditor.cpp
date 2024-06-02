@@ -14,12 +14,9 @@ HostAudioProcessorEditor::HostAudioProcessorEditor (HostAudioProcessorImpl& owne
 {
     setSize (500, 500);
     setResizable (false, false);
-    addAndMakeVisible (closeButton);
     addAndMakeVisible (loader);
 
     hostProcessor.pluginChanged();
-
-    closeButton.onClick = [this] { clearPlugin(); };
 }
 
 void HostAudioProcessorEditor::paint (juce::Graphics& g)
@@ -29,7 +26,6 @@ void HostAudioProcessorEditor::paint (juce::Graphics& g)
 
 void HostAudioProcessorEditor::resized()
 {
-    closeButton.setBounds (getLocalBounds().withSizeKeepingCentre (200, buttonHeight));
     loader.setBounds (getLocalBounds());
 }
 
@@ -61,7 +57,6 @@ void HostAudioProcessorEditor::setScaleFactor (float scale)
 void HostAudioProcessorEditor::pluginChanged()
 {
     loader.setVisible (!hostProcessor.isPluginLoaded());
-    closeButton.setVisible (hostProcessor.isPluginLoaded());
 
     if (hostProcessor.isPluginLoaded())
     {

@@ -30,6 +30,5 @@ private:
     std::unique_ptr<Component> editor;
     PluginEditorComponent* currentEditorComponent = nullptr;
     juce::ScopedValueSetter<std::function<void()>> scopedCallback;
-    juce::TextButton closeButton { "Close Plugin" };
     float currentScaleFactor = 1.0f;
 };
