@@ -28,6 +28,9 @@ endif()
 set(COMPANY_NAME "Sagittarian")
 set(BUNDLE_ID "com.sagittarian.vst.${PROJECT_NAME}")
 
+if(NOT DEFINED PLUGIN_CODE)
+    set(PLUGIN_CODE "EOne")
+endif()
 
 if(NOT DEFINED BANK)
     set(BANK 0)
@@ -77,11 +80,13 @@ juce_add_plugin("${PROJECT_NAME}"
 
     # A four-character plugin id
     # First character MUST be uppercase for AU formats
-    PLUGIN_MANUFACTURER_CODE Pwrp
+    # PLUGIN_MANUFACTURER_CODE Pwrp
+    PLUGIN_MANUFACTURER_CODE EOpw
 
     # A unique four-character plugin id
     # Note: this must have at least one upper-case character
     PLUGIN_CODE P999
+    PLUGIN_CODE "${PLUGIN_CODE}"
     FORMATS "${FORMATS}"
 
     # The name of your final executable

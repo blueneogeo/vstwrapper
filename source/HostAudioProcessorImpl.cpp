@@ -27,6 +27,9 @@ HostAudioProcessorImpl::HostAudioProcessorImpl()
 
     pluginFormatManager.addDefaultFormats();
 
+
+    pluginList.addToBlacklist("com.sagittarian.vst.ElectraB4S3");
+
     if (auto savedPluginList = appProperties.getUserSettings()->getXmlValue ("pluginList"))
         pluginList.recreateFromXml (*savedPluginList);
 
