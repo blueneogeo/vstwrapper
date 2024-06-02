@@ -1,5 +1,4 @@
 #include "PluginEditorComponent.h"
-#include "EditorTools.h"
 #include "juce_events/juce_events.h"
 #include <memory>
 #include <string>
@@ -42,7 +41,7 @@ void PluginEditorComponent::resized()
 
     if (isRestartRequired)
     {
-        status = "Please restart this plugin";
+        status = "Please restart plugin";
     }
     else if (isElectraFound || !isMidiChecked)
     {

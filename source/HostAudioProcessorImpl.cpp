@@ -345,7 +345,6 @@ void HostAudioProcessorImpl::setMidiOutput (juce::String deviceID)
     midiOutput = std::move (outDevice);
     midiOutputDeviceID = deviceID;
 
-    logToFile("params: " + static_cast<juce::String>(pluginParams.size()));
     // Send plugin params to the electra
     for (int i = 0; i < pluginParams.size(); i++)
     {
@@ -357,7 +356,7 @@ void HostAudioProcessorImpl::setMidiOutput (juce::String deviceID)
 
 void HostAudioProcessorImpl::setNewPlugin (const juce::PluginDescription& pd, EditorStyle where, const juce::MemoryBlock& mb)
 {
-    logToFile("Loading plugin id: " + pd.fileOrIdentifier);
+    // logToFile("Loading plugin id: " + pd.fileOrIdentifier);
 
     const juce::ScopedLock sl (innerMutex);
 
@@ -518,7 +517,7 @@ void HostAudioProcessorImpl::changeListenerCallback (juce::ChangeBroadcaster* so
 void HostAudioProcessorImpl::handleIncomingMidiMessage (juce::MidiInput* source,
     const juce::MidiMessage& message)
 {
-    logToFile ("incoming midi message");
+    // logToFile ("incoming midi message");
     if (midiReceiver != nullptr)
     {
         // receiver will call handleIncomingNRPN
@@ -573,7 +572,7 @@ void HostAudioProcessorImpl::sendOutgoingNRPN (int parameter, int value)
     {
         int slotParamId = (presetSlotID - 1) * MAX_PRESET_PARAMS + parameter + 1;
         sendNRPN (midiOutput.get(), midiChannelID, slotParamId, value);
-        logToFile("sending " + static_cast<juce::String>(slotParamId) + " : " + static_cast<juce::String>(value));
+        // logToFile("sending " + static_cast<juce::String>(slotParamId) + " : " + static_cast<juce::String>(value));
     }
 }
 
@@ -582,5 +581,5 @@ void HostAudioProcessorImpl::handlePartialSysexMessage (juce::MidiInput*,
     int,
     double)
 {
-    logToFile ("incoming sysex message");
+    // logToFile ("incoming sysex message");
 }
