@@ -2,24 +2,25 @@
 
 #include "EditorTools.h"
 // #include "PluginEditorComponent.h"
+#include "NRPNReceiver.h"
 #include "juce_core/juce_core.h"
+#include "juce_data_structures/juce_data_structures.h"
 #include "juce_events/juce_events.h"
 #include "juce_gui_basics/juce_gui_basics.h"
 #include <juce_audio_devices/juce_audio_devices.h>
 #include <juce_audio_plugin_client/juce_audio_plugin_client.h>
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <memory>
-#include "NRPNReceiver.h"
 
 #ifndef PRODUCT_NAME
-#define PRODUCT_NAME "ElectraOne"
+    #define PRODUCT_NAME "ElectraOne"
 #endif
 
 class HostAudioProcessorImpl : public juce::AudioProcessor,
                                public juce::AudioProcessorListener,
                                private juce::FocusChangeListener,
                                public juce::MidiInputCallback,
-                                private juce::ChangeListener
+                               private juce::ChangeListener
 {
 public:
     HostAudioProcessorImpl();
@@ -38,10 +39,10 @@ public:
         int numBytesSoFar,
         double timestamp) override;
 
-    void handleIncomingNRPN(int parameter, int value);
+    void handleIncomingNRPN (int parameter, int value);
 
-    void sendOutgoingNRPN(int parameter, int value);
-    
+    void sendOutgoingNRPN (int parameter, int value);
+
     void audioProcessorChanged (AudioProcessor* processor, const ChangeDetails& details) override;
 
     void globalFocusChanged (juce::Component* focusedComponent) override;
@@ -66,14 +67,14 @@ public:
 
     bool producesMidi() const final { return true; }
 
-    void setMidiInput(juce::String deviceID);
+    void setMidiInput (juce::String deviceID);
 
     void clearMidiInput();
 
     void clearMidiOutput();
 
-    void setMidiOutput(juce::String deviceID);
-    
+    void setMidiOutput (juce::String deviceID);
+
     double getTailLengthSeconds() const final { return 0.0; }
 
     int getNumPrograms() final { return 0; }
@@ -101,6 +102,7 @@ public:
     EditorStyle getEditorStyle() const noexcept { return editorStyle; }
 
     juce::ApplicationProperties appProperties;
+    juce::ApplicationProperties pluginProperties;
     juce::AudioPluginFormatManager pluginFormatManager;
     juce::KnownPluginList pluginList;
     // pluginChanged is a callback to inform the HostAudioProcessorEditor
@@ -116,7 +118,7 @@ public:
     std::unique_ptr<NRPNReceiver> midiReceiver;
 
 private:
-    // numbers of params per preset. 
+    // numbers of params per preset.
     // chosen so 127*127/1300 > 12, since we have 12 presets per bank
     // this allows all 12 presets, so 1 bank, to be sent over a single channel
     const int MAX_PRESET_PARAMS = 1300;

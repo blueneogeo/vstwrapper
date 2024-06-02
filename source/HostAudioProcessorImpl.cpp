@@ -25,12 +25,23 @@ HostAudioProcessorImpl::HostAudioProcessorImpl()
         return opt;
     }());
 
-    pluginFormatManager.addDefaultFormats();
+    pluginProperties.setStorageParameters ([&] {
+        juce::PropertiesFile::Options opt;
+        opt.applicationName = "ElectraOnePlugins";
+        opt.commonToAllUsers = false;
+        opt.doNotSave = false;
+        opt.filenameSuffix = ".props";
+        opt.ignoreCaseOfKeyNames = false;
+        opt.storageFormat = juce::PropertiesFile::StorageFormat::storeAsXML;
+        opt.osxLibrarySubFolder = "Application Support";
+        return opt;
+    }());
 
+    pluginFormatManager.addDefaultFormats();
 
     pluginList.addToBlacklist("com.sagittarian.vst.ElectraB4S3");
 
-    if (auto savedPluginList = appProperties.getUserSettings()->getXmlValue ("pluginList"))
+    if (auto savedPluginList = pluginProperties.getUserSettings()->getXmlValue ("pluginList"))
         pluginList.recreateFromXml (*savedPluginList);
 
     // load the parameters from the config if available
@@ -497,8 +508,8 @@ void HostAudioProcessorImpl::changeListenerCallback (juce::ChangeBroadcaster* so
 
     if (auto savedPluginList = pluginList.createXml())
     {
-        appProperties.getUserSettings()->setValue ("pluginList", savedPluginList.get());
-        appProperties.saveIfNeeded();
+        pluginProperties.getUserSettings()->setValue ("pluginList", savedPluginList.get());
+        pluginProperties.saveIfNeeded();
     }
 }
 
