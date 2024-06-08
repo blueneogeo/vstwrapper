@@ -6,7 +6,7 @@
 #include <juce_audio_plugin_client/juce_audio_plugin_client.h>
 #include <juce_audio_processors/juce_audio_processors.h>
 
-const bool LOG = TRUE;
+const bool LOG = true;
 
 //==============================================================================
 enum class EditorStyle { thisWindow,

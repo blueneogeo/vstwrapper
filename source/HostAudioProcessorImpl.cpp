@@ -229,7 +229,8 @@ void HostAudioProcessorImpl::getStateInformation (juce::MemoryBlock& destData)
 
 void HostAudioProcessorImpl::setStateInformation (const void* data, int sizeInBytes)
 {
-    logToFile ("setStateInformation");
+    if (DEBUG)
+        logToFile ("setStateInformation");
     const juce::ScopedLock sl (innerMutex);
 
     auto xml = juce::XmlDocument::parse (juce::String (juce::CharPointer_UTF8 (static_cast<const char*> (data)), (size_t) sizeInBytes));
@@ -312,7 +313,7 @@ void HostAudioProcessorImpl::clearMidiOutput()
     }
 }
 
-void HostAudioProcessorImpl::setMidiInput (juce::String deviceID)
+void HostAudioProcessorImpl::setMidiInput (juce::String deviceID, int channel, int slot)
 {
     logToFile ("setting midi input to " + deviceID);
 
@@ -320,11 +321,13 @@ void HostAudioProcessorImpl::setMidiInput (juce::String deviceID)
 
     deviceManager.setMidiInputDeviceEnabled (deviceID, true);
     deviceManager.addMidiInputDeviceCallback (deviceID, this);
-    midiReceiver = std::make_unique<NRPNReceiver> (1, [this] (int param, int value) {
+    midiReceiver = std::make_unique<NRPNReceiver> (channel, [this] (int param, int value) {
         handleIncomingNRPN (param, value);
     });
 
     midiInputDeviceID = deviceID;
+    midiChannelID = channel;
+    presetSlotID = slot;
 }
 
 void HostAudioProcessorImpl::setMidiOutput (juce::String deviceID)
@@ -457,11 +460,13 @@ void HostAudioProcessorImpl::audioProcessorParameterChanged (juce::AudioProcesso
         param->endChangeGesture();
 
         // publish the event that a parameter has changed
-        auto intValue = static_cast<int> (127 * 127 * newValue);
-        ParameterEventBus::publish (parameterIndex, intValue);
+        // TODO: enable
+        // auto intValue = static_cast<int> (127 * 127 * newValue);
+        // ParameterEventBus::publish (parameterIndex, intValue);
 
         // also inform the Electra One
-        sendOutgoingNRPN (parameterIndex, intValue);
+        // TODO: enable
+        // sendOutgoingNRPN (parameterIndex, intValue);
 
         isUpdatingParam = false; // Ensure this flag is reset within the lambda
     }
@@ -527,19 +532,19 @@ void HostAudioProcessorImpl::handleIncomingMidiMessage (juce::MidiInput* source,
 
 void HostAudioProcessorImpl::handleIncomingNRPN (int parameterIndex, int value)
 {
-    // logToFile ("incoming nrpm: " + static_cast<juce::String> (parameterIndex) + " - " + static_cast<juce::String> (value));
+    if (DEBUG)
+        logToFile ("incoming nrpm: " + static_cast<juce::String> (parameterIndex) + " - " + static_cast<juce::String> (value));
 
     int floor = static_cast<int> (std::floor (static_cast<float> (parameterIndex - 1) / static_cast<float> (MAX_PRESET_PARAMS)));
     int base = floor * MAX_PRESET_PARAMS;
     int parameter = parameterIndex - base - 1;
-    float newValue = static_cast<float> (value) / 127 / 127;
+    float newValue = (static_cast<float> (value)) / 127.0f / 127.0f;
 
     if (parameter > getParameters().size())
         return;
 
-    // publish the event that a parameter has changed
-    auto intValue = static_cast<int> (127 * 127 * newValue);
-    ParameterEventBus::publish (parameterIndex - 1, intValue);
+    // tell the wrapper interface that a parameter has changed
+    ParameterEventBus::publish (parameterIndex - 1, value);
 
     auto params = this->getParameters();
     if (parameter < params.size() && !isUpdatingParam)
@@ -547,10 +552,12 @@ void HostAudioProcessorImpl::handleIncomingNRPN (int parameterIndex, int value)
         isUpdatingParam = true;
 
         // Ensure this code runs on the message thread
+        // Note: also seems to work without on Bitwig, but produces oscillation
+        // FIX: oscillation / feedback handshake?
         juce::MessageManager::callAsync ([this, params, parameter, newValue]() {
             auto* param = params[parameter];
 
-            // logToFile ("sending param change " + juce::String (parameterIndex) + " - " + juce::String (newValue));
+            logToFile ("setting inner param " + juce::String (parameter) + " - " + juce::String (newValue));
             param->beginChangeGesture();
             param->setValueNotifyingHost (newValue);
             param->endChangeGesture();
@@ -572,7 +579,8 @@ void HostAudioProcessorImpl::sendOutgoingNRPN (int parameter, int value)
     {
         int slotParamId = (presetSlotID - 1) * MAX_PRESET_PARAMS + parameter + 1;
         sendNRPN (midiOutput.get(), midiChannelID, slotParamId, value);
-        // logToFile("sending " + static_cast<juce::String>(slotParamId) + " : " + static_cast<juce::String>(value));
+        if (DEBUG)
+            logToFile ("sending channel: " + static_cast<juce::String> (midiChannelID) + " : " + static_cast<juce::String> (slotParamId) + " : " + static_cast<juce::String> (value));
     }
 }
 

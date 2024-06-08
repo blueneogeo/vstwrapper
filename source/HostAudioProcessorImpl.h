@@ -1,7 +1,6 @@
 #pragma once
 
 #include "EditorTools.h"
-// #include "PluginEditorComponent.h"
 #include "NRPNReceiver.h"
 #include "juce_core/juce_core.h"
 #include "juce_data_structures/juce_data_structures.h"
@@ -11,6 +10,16 @@
 #include <juce_audio_plugin_client/juce_audio_plugin_client.h>
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <memory>
+
+#define DEBUG true
+
+#ifndef BANK
+    #define BANK 0
+#endif
+
+#ifndef SLOT
+    #define SLOT 0
+#endif
 
 #ifndef PRODUCT_NAME
     #define PRODUCT_NAME "ElectraOne"
@@ -67,7 +76,7 @@ public:
 
     bool producesMidi() const final { return true; }
 
-    void setMidiInput (juce::String deviceID);
+    void setMidiInput (juce::String deviceID, int channel, int slot);
 
     void clearMidiInput();
 
@@ -112,8 +121,8 @@ public:
 
     juce::String midiInputDeviceID = "";
     juce::String midiOutputDeviceID = "";
-    int midiChannelID = 0;
-    int presetSlotID = 0;
+    int midiChannelID = BANK;
+    int presetSlotID = SLOT;
     std::unique_ptr<juce::MidiOutput> midiOutput;
     std::unique_ptr<NRPNReceiver> midiReceiver;
 
@@ -121,6 +130,9 @@ private:
     // numbers of params per preset.
     // chosen so 127*127/1300 > 12, since we have 12 presets per bank
     // this allows all 12 presets, so 1 bank, to be sent over a single channel
+    // FIX: this does not seem enough. For example, Repro-1 goes over 2000.
+    // Instead, use 12 midi channels, by splitting a preset over 2 channels.
+    // So 6 slots of 2 channels each, making 12 midi channels used.
     const int MAX_PRESET_PARAMS = 1300;
     juce::AudioDeviceManager deviceManager;
     bool isUpdatingParam = false;

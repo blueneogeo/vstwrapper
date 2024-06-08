@@ -9,10 +9,11 @@ class NRPNReceiver : public juce::MidiInputCallback
 public:
     using HandlerType = std::function<void (int parameter, int value)>;
 
+    // @param channel - the midi channel to use, 1-16
     NRPNReceiver (int channel, HandlerType handler)
-        : midiChannel (channel - 1), nrpnHandler (handler)
+        : midiChannel (channel), nrpnHandler (handler)
     {
-        jassert (channel >= 1 && channel <= 16); // Ensure valid channel range
+        jassert (channel >= 1 && channel <= 16);
     }
 
     void handleIncomingMidiMessage (juce::MidiInput*, const juce::MidiMessage& message) override
@@ -22,7 +23,7 @@ public:
             int controllerNumber = message.getControllerNumber();
             int controllerValue = message.getControllerValue();
 
-            if (message.getChannel() == midiChannel + 1)
+            if (message.getChannel() == midiChannel)
             {
                 switch (controllerNumber)
                 {
@@ -49,7 +50,7 @@ public:
                         break;
 
                     default:
-                        break; // Handle other controllers if necessary
+                        break;
                 }
             }
         }

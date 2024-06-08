@@ -1,4 +1,5 @@
 #include "PluginEditorComponent.h"
+#include "EditorTools.h"
 #include "juce_events/juce_events.h"
 #include <memory>
 #include <string>
@@ -93,7 +94,7 @@ void PluginEditorComponent::timerCallback()
     }
     else if (inDevice != processor->midiInputDeviceID)
     {
-        processor->setMidiInput (inDevice);
+        processor->setMidiInput (inDevice, processor->midiChannelID, processor->presetSlotID);
     }
 
     // find the outDevice for the MIDI_OUT, if it is available
@@ -117,6 +118,16 @@ void PluginEditorComponent::timerCallback()
     else if (outDevice != processor->midiOutputDeviceID)
     {
         processor->setMidiOutput (outDevice);
+    }
+
+    // set the bank and slot if necessary
+    if(midiChannelSelector.getSelectedId() != processor->midiChannelID) {
+        logToFile("setting midi channel to " + static_cast<juce::String>(processor->midiChannelID) + ", was " + static_cast<juce::String>(midiChannelSelector.getSelectedId()));
+        midiChannelSelector.setSelectedId(processor->midiChannelID);
+    }
+
+    if(electraSlotSelector.getSelectedId() != processor->presetSlotID) {
+        electraSlotSelector.setSelectedId(processor->presetSlotID);
     }
 
     resized();

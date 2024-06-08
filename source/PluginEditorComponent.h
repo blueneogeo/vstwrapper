@@ -125,7 +125,7 @@ public:
             auto deviceIndex = midiInputSelector.getSelectedId();
             auto input = inputs[deviceIndex - 1];
             logToFile ("selected input name " + input.name);
-            processor->setMidiInput (input.identifier);
+            processor->setMidiInput (input.identifier, processor->midiChannelID, processor->presetSlotID);
         };
 
         midiOutputSelector.onChange = [this] {
@@ -140,19 +140,16 @@ public:
         };
 
         midiChannelSelector.onChange = [this] {
-            processor->midiChannelID = midiChannelSelector.getSelectedId();
+            processor->setMidiInput(processor->midiInputDeviceID, midiChannelSelector.getSelectedId(), processor->presetSlotID);
+            // processor->midiChannelID = midiChannelSelector.getSelectedId();
             logToFile ("set midi channel to " + static_cast<juce::String> (processor->midiChannelID));
         };
 
         electraSlotSelector.onChange = [this] {
-            processor->presetSlotID = electraSlotSelector.getSelectedId();
+            processor->setMidiInput(processor->midiInputDeviceID, processor->midiChannelID, electraSlotSelector.getSelectedId());
+            // processor->presetSlotID = electraSlotSelector.getSelectedId();
             logToFile ("set preset to " + static_cast<juce::String> (processor->presetSlotID));
         };
-
-        if(BANK > 0 && SLOT > 0) {
-            processor->midiChannelID = BANK;
-            processor->presetSlotID = SLOT;
-        }
 
         ParameterEventBus::subscribe ([this] (int param, int value) { onParameterChanged (param, value); });
 
