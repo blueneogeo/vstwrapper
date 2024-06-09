@@ -5,6 +5,7 @@
 #include "NRPNReceiver.h"
 #include "ParameterChangeListener.h"
 #include "juce_audio_devices/juce_audio_devices.h"
+#include "juce_audio_processors/juce_audio_processors.h"
 #include "juce_core/juce_core.h"
 #include <memory>
 
@@ -71,10 +72,10 @@ HostAudioProcessorImpl::HostAudioProcessorImpl()
                         innerParam->endChangeGesture();
                         isUpdatingParam = false;
                         // publish the event that a parameter has changed for the wrapper interface to show
-                        auto intValue = static_cast<int> (127 * 127 * newValue);
-                        ParameterEventBus::publish (index, intValue);
+                        auto nrpnValue = floatToNrpnValue (newValue);
+                        ParameterEventBus::publish (index, nrpnValue);
                         // inform the electra one
-                        sendOutgoingNRPN (index, intValue);
+                        sendOutgoingNRPN (index, nrpnValue);
                     }
                 });
 
@@ -129,15 +130,35 @@ void HostAudioProcessorImpl::releaseResources()
             for (int i = 0; i < params.size(); i++)
             {
                 auto param = params[i];
+
                 auto paramEl = new juce::XmlElement ("param");
                 paramEl->setAttribute ("name", param->getName (128));
                 paramEl->setAttribute ("label", param->getLabel());
                 paramEl->setAttribute ("default", param->getDefaultValue());
                 paramEl->setAttribute ("steps", param->getNumSteps());
+
+                if (auto* choiceParam = dynamic_cast<juce::AudioProcessorParameterWithID*> (param))
+                {
+                    logToFile("adding choices");
+                    // auto choicesEl = new juce::XmlElement ("choices");
+                    // for (auto choice : choiceParam->choices)
+                    // {
+                    //     auto choiceEl = new juce::XmlElement ("choice");
+                    //     choiceEl->setText (choice);
+                    //     choicesEl->addChildElement (choiceEl);
+                    // }
+                    // paramEl->addChildElement (choicesEl);
+                }
                 paramsEl->addChildElement (paramEl);
+
+                auto labels = param->getAllValueStrings();
             }
 
             settings->setValue ("params", paramsEl);
+
+            auto pluginEl = inner->getPluginDescription().createXml();
+            settings->setValue("plugin", pluginEl.get());
+
             settings->saveIfNeeded();
         }
     }
@@ -352,7 +373,7 @@ void HostAudioProcessorImpl::setMidiOutput (juce::String deviceID)
     for (int i = 0; i < pluginParams.size(); i++)
     {
         auto param = pluginParams[i];
-        auto value = static_cast<int> (param->getValue() * 127 * 127);
+        auto value = floatToNrpnValue (param->getValue());
         sendOutgoingNRPN (i, value);
     }
 }
@@ -412,7 +433,8 @@ void HostAudioProcessorImpl::setNewPlugin (const juce::PluginDescription& pd, Ed
             for (int i = 0; i < pluginParameters.size(); i++)
             {
                 auto pluginParam = pluginParameters[i];
-                auto value = static_cast<int> (pluginParam->getValue() * 127 * 127);
+                int value = floatToNrpnValue (pluginParam->getValue());
+                // TODO: enable handling wrapped plugin. Also, is this correct?
                 handleIncomingNRPN (i + 1, value);
             }
         }
@@ -439,7 +461,6 @@ void HostAudioProcessorImpl::audioProcessorParameterChanged (juce::AudioProcesso
     int parameterIndex,
     float newValue)
 {
-    // logToFile ("incoming param change " + juce::String (parameterIndex) + " - " + juce::String (newValue));
     auto params = this->getParameters();
     if (parameterIndex < params.size() && !isUpdatingParam)
     {
@@ -448,6 +469,8 @@ void HostAudioProcessorImpl::audioProcessorParameterChanged (juce::AudioProcesso
         // Ensure this code runs on the message thread
         // juce::MessageManager::callAsync ([this, params, parameterIndex, newValue]() {
         auto* param = params[parameterIndex];
+
+        logToFile ("plugin param change " + juce::String (parameterIndex) + " - " + juce::String (newValue) + " - text: " + param->getText (newValue, 128));
 
         param->beginChangeGesture();
         // logToFile ("sending param change " + juce::String (parameterIndex) + " - " + juce::String (newValue));
@@ -461,12 +484,12 @@ void HostAudioProcessorImpl::audioProcessorParameterChanged (juce::AudioProcesso
 
         // publish the event that a parameter has changed
         // TODO: enable
-        // auto intValue = static_cast<int> (127 * 127 * newValue);
-        // ParameterEventBus::publish (parameterIndex, intValue);
+        int nrpnValue = floatToNrpnValue (newValue);
+        ParameterEventBus::publish (parameterIndex, nrpnValue);
 
         // also inform the Electra One
         // TODO: enable
-        // sendOutgoingNRPN (parameterIndex, intValue);
+        sendOutgoingNRPN (parameterIndex, nrpnValue);
 
         isUpdatingParam = false; // Ensure this flag is reset within the lambda
     }
@@ -538,7 +561,7 @@ void HostAudioProcessorImpl::handleIncomingNRPN (int parameterIndex, int value)
     int floor = static_cast<int> (std::floor (static_cast<float> (parameterIndex - 1) / static_cast<float> (MAX_PRESET_PARAMS)));
     int base = floor * MAX_PRESET_PARAMS;
     int parameter = parameterIndex - base - 1;
-    float newValue = (static_cast<float> (value)) / 127.0f / 127.0f;
+    float newValue = nrpnValueToFloat (value);
 
     if (parameter > getParameters().size())
         return;

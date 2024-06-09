@@ -48,7 +48,7 @@ void PluginEditorComponent::resized()
     {
         if (BANK > 0 && SLOT > 0)
         {
-            status = "bank " + std::to_string (BANK) + " slot " + std::to_string (SLOT);
+            status = "Bank " + std::to_string (BANK) + " - Slot " + std::to_string (SLOT);
         }
         else
         {
