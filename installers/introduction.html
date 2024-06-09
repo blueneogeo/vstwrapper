@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<style>
+			body {
+				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+				font-size: 13px;
+				color: #000; /* Optional: Set text color if needed */
+			}
+		</style>
+	</head>
+
+	<body>
+		<h3>Control your VST3 plugins with your ElectraOne</h3>
+
+		<p>These wrappers allow you to have bi-directional control over your VST3s using the ElectraOne hardware MIDI controller.</p>
+		<p>Each wrapper talks to a specific slot on your ElectraOne.</p>
+
+		<h3>How to use</h3>
+
+		<ol>
+			<li>On your ElectraOne, load the Preset for the plugin you want to control in a slot.</li>
+			<li>On your DAW, pick the ElectraOne plugin for the slot you chose.</li>
+			<li>
+				In the ElectraOne plugin dialog, choose Options and "Scan for new or updated VST3 plugins". This will populate the list with your VST3
+				plugins.
+			</li>
+			<li>
+				Select the plugin you want to control with your ElectraOne, and press "Open VST3 Plugin". This will load and show your plugin. It will
+				also analyse your plugin. The top bar of the plugin will say "Restart plugin"
+			</li>
+			<li>For the plugin to be controllable, restart the plugin or your DAW. The plugin should now be controllable from your ElectraOne.</li>
+		</ol>
+	</body>
+</html>

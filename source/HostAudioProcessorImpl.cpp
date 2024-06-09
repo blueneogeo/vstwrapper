@@ -470,7 +470,7 @@ void HostAudioProcessorImpl::audioProcessorParameterChanged (juce::AudioProcesso
         // juce::MessageManager::callAsync ([this, params, parameterIndex, newValue]() {
         auto* param = params[parameterIndex];
 
-        logToFile ("plugin param change " + juce::String (parameterIndex) + " - " + juce::String (newValue) + " - text: " + param->getText (newValue, 128));
+        // logToFile ("plugin param change " + juce::String (parameterIndex) + " - " + juce::String (newValue) + " - text: " + param->getText (newValue, 128));
 
         param->beginChangeGesture();
         // logToFile ("sending param change " + juce::String (parameterIndex) + " - " + juce::String (newValue));
@@ -558,9 +558,10 @@ void HostAudioProcessorImpl::handleIncomingNRPN (int parameterIndex, int value)
     if (DEBUG)
         logToFile ("incoming nrpm: " + static_cast<juce::String> (parameterIndex) + " - " + static_cast<juce::String> (value));
 
-    int floor = static_cast<int> (std::floor (static_cast<float> (parameterIndex - 1) / static_cast<float> (MAX_PRESET_PARAMS)));
-    int base = floor * MAX_PRESET_PARAMS;
-    int parameter = parameterIndex - base - 1;
+    int parameter = parameterIndex % MAX_PRESET_PARAMS - 1;
+    int slot = parameterIndex / MAX_PRESET_PARAMS + 1;
+    if(slot != this->presetSlotID) return;
+
     float newValue = nrpnValueToFloat (value);
 
     if (parameter > getParameters().size())
@@ -569,8 +570,9 @@ void HostAudioProcessorImpl::handleIncomingNRPN (int parameterIndex, int value)
     // tell the wrapper interface that a parameter has changed
     ParameterEventBus::publish (parameterIndex - 1, value);
 
+    // tell the DAW to update this parameter
     auto params = this->getParameters();
-    if (parameter < params.size() && !isUpdatingParam)
+    if (!isUpdatingParam)
     {
         isUpdatingParam = true;
 
@@ -580,7 +582,7 @@ void HostAudioProcessorImpl::handleIncomingNRPN (int parameterIndex, int value)
         juce::MessageManager::callAsync ([this, params, parameter, newValue]() {
             auto* param = params[parameter];
 
-            logToFile ("setting inner param " + juce::String (parameter) + " - " + juce::String (newValue));
+            // logToFile ("setting inner param " + juce::String (parameter) + " - " + juce::String (newValue));
             param->beginChangeGesture();
             param->setValueNotifyingHost (newValue);
             param->endChangeGesture();

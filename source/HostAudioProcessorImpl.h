@@ -11,7 +11,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <memory>
 
-#define DEBUG true
+#define DEBUG false
 
 #ifndef BANK
     #define BANK 0
