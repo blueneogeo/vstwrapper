@@ -409,6 +409,13 @@ void HostAudioProcessorImpl::setNewPlugin (const juce::PluginDescription& pd, Ed
         // In any case, it is essential that the inner plugin is told about the bus
         // configuration that will be used. The AudioBuffer passed to the inner plugin must also
         // exactly match this layout.
+        if (auto* bus = inner->getBus(true, 0)) {
+            bus->setCurrentLayout(this->getChannelLayoutOfBus(true, 0));
+        }
+
+        if (auto* bus = inner->getBus(false, 0)) {
+            bus->setCurrentLayout(this->getChannelLayoutOfBus(false, 0));
+        }
 
         if (active)
         {
@@ -420,6 +427,8 @@ void HostAudioProcessorImpl::setNewPlugin (const juce::PluginDescription& pd, Ed
 
             // listen to inner plugin changes
             inner->addListener (this);
+
+            inner->enableAllBuses();
         }
 
         juce::NullCheckedInvocation::invoke (pluginChanged);
