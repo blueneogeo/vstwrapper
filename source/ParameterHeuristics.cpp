@@ -65,14 +65,13 @@ shared_ptr<Choices> findChoices (juce::AudioProcessorParameter* param, size_t st
 
 std::shared_ptr<ParamData> analyseParamLabel (String& label)
 {
-    // std::shared_ptr<Data> extractData(String label) {
     auto data = std::make_shared<ParamData>();
 
     // Initialize default values
     data->pre = "";
     data->value = 0.0f;
     data->unit = "";
-    data->isInt = true;
+    data->isInt = false;
 
     int i = 0;
 
@@ -83,15 +82,22 @@ std::shared_ptr<ParamData> analyseParamLabel (String& label)
         ++i;
     }
 
+    String numberStr; // Declare numberStr here
+
     // Skip any spaces after prefix
     while (i < label.length() && juce::CharacterFunctions::isWhitespace (label[i]))
     {
         ++i;
     }
 
-    // Extract numeric value part
-    String numberStr;
+    // Handle negative numbers directly before extracting numeric value part
+    if (i < label.length() && (label[i] == '-'))
+    {
+        numberStr += label[i];
+        ++i;
+    }
 
+    // Extract numeric value part
     while (i < label.length() && (juce::CharacterFunctions::isDigit (label[i]) || label[i] == '.'))
     {
         numberStr += label[i];
@@ -126,17 +132,23 @@ std::shared_ptr<ParamData> analyseParamLabel (String& label)
 void logToFile (ParamMetaData* data)
 {
     logToFile ("Param " + data->name);
-    logToFile (" - start: " + static_cast<String>(data->start));
-    logToFile (" - end  : " + static_cast<String>(data->end));
-    logToFile (" - isInt: " + static_cast<String> (data->isInt ? "true" : "false"));
-    logToFile (" - unit: " + data->unit);
-    logToFile (" - switch: " + static_cast<String> (data->isBoolean ? "true" : "false"));
     if (data->isDiscrete)
     {
+        logToFile (" - is button: " + static_cast<String> (data->isBoolean ? "true" : "false"));
+        logToFile (" - discrete steps: " + static_cast<String> (data->choices->size()));
         logToFile (" - discrete choices  : ");
         for (auto choice : *(data->choices))
         {
             logToFile ("    - " + static_cast<String> (choice->value) + ": " + choice->label);
         }
     }
+    else
+    {
+        logToFile (" - continuous");
+        logToFile (" - isInt: " + static_cast<String> (data->isInt ? "true" : "false"));
+        logToFile (" - start: " + static_cast<String> (data->start));
+        logToFile (" - end  : " + static_cast<String> (data->end));
+        logToFile (" - unit: " + data->unit);
+    }
+    logToFile ("");
 }
