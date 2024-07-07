@@ -4,14 +4,18 @@
 #include "MidiTools.h"
 #include "NRPNReceiver.h"
 #include "ParameterChangeListener.h"
+#include "ParameterHeuristics.h"
 #include "juce_audio_devices/juce_audio_devices.h"
 #include "juce_audio_processors/juce_audio_processors.h"
 #include "juce_core/juce_core.h"
 #include <memory>
+#include "std_include.h"
 
 HostAudioProcessorImpl::HostAudioProcessorImpl()
     : AudioProcessor (BusesProperties().withInput ("Input", juce::AudioChannelSet::stereo(), true).withOutput ("Output", juce::AudioChannelSet::stereo(), true))
 {
+    clearLogFile();
+    
     deviceManager.initialise (2, 2, nullptr, true);
 
     appProperties.setStorageParameters ([&] {
@@ -131,33 +135,48 @@ void HostAudioProcessorImpl::releaseResources()
             {
                 auto param = params[i];
 
+                // logToFile("param: " + param->getName(256));
                 auto paramEl = new juce::XmlElement ("param");
                 paramEl->setAttribute ("name", param->getName (128));
                 paramEl->setAttribute ("label", param->getLabel());
                 paramEl->setAttribute ("default", param->getDefaultValue());
                 paramEl->setAttribute ("steps", param->getNumSteps());
 
-                if (auto* choiceParam = dynamic_cast<juce::AudioProcessorParameterWithID*> (param))
-                {
-                    logToFile("adding choices");
-                    // auto choicesEl = new juce::XmlElement ("choices");
-                    // for (auto choice : choiceParam->choices)
-                    // {
-                    //     auto choiceEl = new juce::XmlElement ("choice");
-                    //     choiceEl->setText (choice);
-                    //     choicesEl->addChildElement (choiceEl);
-                    // }
-                    // paramEl->addChildElement (choicesEl);
-                }
+                // auto choices = param->getAllValueStrings();
+                // for (auto choice : choices)
+                // {
+                //     logToFile ("found choice " + choice);
+                // }
+
+                // if (auto* choiceParam = dynamic_cast<juce::AudioProcessorParameterWithID*> (param))
+                // {
+                //     logToFile ("adding choices");
+                //     // auto choicesEl = new juce::XmlElement ("choices");
+                //     // for (auto choice : choiceParam->choices)
+                //     // {
+                //     //     auto choiceEl = new juce::XmlElement ("choice");
+                //     //     choiceEl->setText (choice);
+                //     //     choicesEl->addChildElement (choiceEl);
+                //     // }
+                //     // paramEl->addChildElement (choicesEl);
+                // }
                 paramsEl->addChildElement (paramEl);
 
-                auto labels = param->getAllValueStrings();
+                // auto* vst3Param = dynamic_cast<Steinberg::Vst::ParameterInfo*>(param);
+                // if (vst3Param == nullptr)
+                // {
+                //     logToFile("Failed to cast to VST3 parameter");
+                // }
+
+                auto paramData = make_shared<ParamMetaData>();
+                analyseParameter(param, paramData.get());
+                logToFile(paramData.get());
             }
 
             settings->setValue ("params", paramsEl);
 
             auto pluginEl = inner->getPluginDescription().createXml();
-            settings->setValue("plugin", pluginEl.get());
+            settings->setValue ("plugin", pluginEl.get());
 
             settings->saveIfNeeded();
         }
@@ -219,7 +238,7 @@ void HostAudioProcessorImpl::getStateInformation (juce::MemoryBlock& destData)
             juce::MemoryBlock innerState;
             inner->getStateInformation (innerState);
 
-            auto stateNode = std::make_unique<juce::XmlElement> (innerStateTag);
+            auto stateNode = make_unique<juce::XmlElement> (innerStateTag);
             stateNode->addTextElement (innerState.toBase64Encoding());
             return stateNode.release();
         }());
@@ -342,7 +361,7 @@ void HostAudioProcessorImpl::setMidiInput (juce::String deviceID, int channel, i
 
     deviceManager.setMidiInputDeviceEnabled (deviceID, true);
     deviceManager.addMidiInputDeviceCallback (deviceID, this);
-    midiReceiver = std::make_unique<NRPNReceiver> (channel, [this] (int param, int value) {
+    midiReceiver = make_unique<NRPNReceiver> (channel, [this] (int param, int value) {
         handleIncomingNRPN (param, value);
     });
 
@@ -384,7 +403,7 @@ void HostAudioProcessorImpl::setNewPlugin (const juce::PluginDescription& pd, Ed
 
     const juce::ScopedLock sl (innerMutex);
 
-    const auto callback = [this, where, mb] (std::unique_ptr<juce::AudioPluginInstance> instance, const juce::String& error) {
+    const auto callback = [this, where, mb] (unique_ptr<juce::AudioPluginInstance> instance, const juce::String& error) {
         if (error.isNotEmpty())
         {
             auto options = juce::MessageBoxOptions::makeOptionsOk (juce::MessageBoxIconType::WarningIcon,
@@ -409,12 +428,14 @@ void HostAudioProcessorImpl::setNewPlugin (const juce::PluginDescription& pd, Ed
         // In any case, it is essential that the inner plugin is told about the bus
         // configuration that will be used. The AudioBuffer passed to the inner plugin must also
         // exactly match this layout.
-        if (auto* bus = inner->getBus(true, 0)) {
-            bus->setCurrentLayout(this->getChannelLayoutOfBus(true, 0));
+        if (auto* bus = inner->getBus (true, 0))
+        {
+            bus->setCurrentLayout (this->getChannelLayoutOfBus (true, 0));
         }
 
-        if (auto* bus = inner->getBus(false, 0)) {
-            bus->setCurrentLayout(this->getChannelLayoutOfBus(false, 0));
+        if (auto* bus = inner->getBus (false, 0))
+        {
+            bus->setCurrentLayout (this->getChannelLayoutOfBus (false, 0));
         }
 
         if (active)
@@ -533,7 +554,7 @@ bool HostAudioProcessorImpl::isPluginLoaded() const
     return inner != nullptr;
 }
 
-std::unique_ptr<juce::AudioProcessorEditor> HostAudioProcessorImpl::createInnerEditor() const
+unique_ptr<juce::AudioProcessorEditor> HostAudioProcessorImpl::createInnerEditor() const
 {
     const juce::ScopedLock sl (innerMutex);
     return rawToUniquePtr (inner->hasEditor() ? inner->createEditorIfNeeded() : nullptr);
@@ -569,7 +590,8 @@ void HostAudioProcessorImpl::handleIncomingNRPN (int parameterIndex, int value)
 
     int parameter = parameterIndex % MAX_PRESET_PARAMS - 1;
     int slot = parameterIndex / MAX_PRESET_PARAMS + 1;
-    if(slot != this->presetSlotID) return;
+    if (slot != this->presetSlotID)
+        return;
 
     float newValue = nrpnValueToFloat (value);
 

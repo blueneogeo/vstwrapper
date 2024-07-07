@@ -7,6 +7,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 
 const bool LOG = true;
+const juce::String LOGFILE = "ElectraLog.txt";
 
 //==============================================================================
 enum class EditorStyle { thisWindow,
@@ -30,13 +31,26 @@ inline std::string getPluginPath()
     return std::string (buffer.data());
 }
 
+inline juce::File getLogFile()
+{
+    auto locationDir = juce::File::getSpecialLocation (juce::File::userDocumentsDirectory);
+    return locationDir.getChildFile (LOGFILE);
+}
+
+inline void clearLogFile()
+{
+    auto logFile = getLogFile();
+    if (logFile.existsAsFile())
+    {
+        logFile.deleteFile();
+    }
+}
+
 inline void logToFile (const juce::String& message)
 {
     if (!LOG)
         return;
 
-    juce::File logFile = juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
-                             .getChildFile ("ElectraLog.txt");
-
+    auto logFile = getLogFile();
     logFile.appendText (message + "\n");
 }
