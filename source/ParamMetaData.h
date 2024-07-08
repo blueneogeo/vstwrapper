@@ -3,6 +3,7 @@
 #include <juce_audio_devices/juce_audio_devices.h>
 #include <juce_audio_plugin_client/juce_audio_plugin_client.h>
 #include <juce_audio_processors/juce_audio_processors.h>
+#include "juce_core/juce_core.h"
 #include "std_include.h"
 
 struct ParamData {
@@ -36,10 +37,11 @@ struct ParamMetaData
     shared_ptr<Choices> choices;
 };
 
-void analyseParameter(juce::AudioProcessorParameter* param, ParamMetaData* data);
-
-void logToFile(ParamMetaData* data);
-
+shared_ptr<ParamMetaData> analyseParameter (juce::AudioProcessorParameter* param);
+std::shared_ptr<ParamData> analyseParamLabel(String& label);
 shared_ptr<Choices> findChoices (juce::AudioProcessorParameter* param, size_t steps);
 
-std::shared_ptr<ParamData> analyseParamLabel(String& label);
+shared_ptr<ParamMetaData> toParamMetaData(juce::XmlElement* paramEl);
+juce::XmlElement* toParamDataXML (shared_ptr<ParamMetaData> paramData);
+
+void logToFile(ParamMetaData* data);

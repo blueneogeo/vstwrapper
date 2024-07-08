@@ -2,7 +2,7 @@
 
 #include "EditorTools.h"
 #include "NRPNReceiver.h"
-#include "ParameterHeuristics.h"
+#include "ParamMetaData.h"
 #include "juce_core/juce_core.h"
 #include "juce_data_structures/juce_data_structures.h"
 #include "juce_events/juce_events.h"
@@ -48,10 +48,6 @@ public:
         const juce::uint8* messageData,
         int numBytesSoFar,
         double timestamp) override;
-
-    void handleIncomingNRPN (int parameter, int value);
-
-    void sendOutgoingNRPN (int parameter, int value);
 
     void audioProcessorChanged (AudioProcessor* processor, const ChangeDetails& details) override;
 
@@ -149,4 +145,8 @@ private:
     static constexpr const char* editorStyleTag = "editor_style";
 
     void changeListenerCallback (juce::ChangeBroadcaster* source) override;
+
+    void handleIncomingNRPN (int parameter, int value);
+    void sendOutgoingNRPN (int parameter, int value);
+
 };

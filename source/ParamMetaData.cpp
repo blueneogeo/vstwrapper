@@ -1,10 +1,12 @@
-#include "ParameterHeuristics.h"
+#include "ParamMetaData.h"
 #include "EditorTools.h"
 #include <memory>
 
-void analyseParameter (juce::AudioProcessorParameter* param, ParamMetaData* data)
+shared_ptr<ParamMetaData> analyseParameter (juce::AudioProcessorParameter* param)
 {
     size_t MAX_OPTIONS = 220;
+
+    auto data = make_shared<ParamMetaData>();
 
     data->name = param->getName (256);
 
@@ -34,6 +36,8 @@ void analyseParameter (juce::AudioProcessorParameter* param, ParamMetaData* data
         data->endValue = lastData->value;
         data->isInt = lastData->isInt;
     }
+
+    return data;
 }
 
 shared_ptr<Choices> findChoices (juce::AudioProcessorParameter* param, size_t steps)
@@ -126,6 +130,83 @@ std::shared_ptr<ParamData> analyseParamLabel (String& label)
     }
 
     return data;
+}
+
+juce::XmlElement* toParamDataXML (shared_ptr<ParamMetaData> paramData)
+{
+    auto paramEl = new juce::XmlElement ("param");
+    paramEl->setAttribute ("name", paramData->name);
+    paramEl->setAttribute ("label", paramData->label);
+    paramEl->setAttribute ("default", paramData->defaultValue);
+    paramEl->setAttribute ("discrete", paramData->isDiscrete);
+    if (paramData->isDiscrete)
+    {
+        paramEl->setAttribute ("isbutton", paramData->isBoolean);
+        auto choices = new juce::XmlElement ("choices");
+        for (auto choice : *(paramData->choices))
+        {
+            auto choiceEl = new juce::XmlElement ("choice");
+            choiceEl->setAttribute ("label", choice->label);
+            choiceEl->setAttribute ("value", choice->value);
+            choices->addChildElement (choiceEl);
+        }
+        paramEl->addChildElement (choices);
+    }
+    else
+    {
+        paramEl->setAttribute ("startValue", paramData->startValue);
+        paramEl->setAttribute ("startLabel", paramData->startLabel);
+        paramEl->setAttribute ("endValue", paramData->endValue);
+        paramEl->setAttribute ("endLabel", paramData->endLabel);
+        paramEl->setAttribute ("unit", paramData->unit);
+        paramEl->setAttribute ("isInt", paramData->isInt);
+    }
+
+    logToFile(paramEl->getStringAttribute("name"));
+    
+    return paramEl;
+}
+
+shared_ptr<ParamMetaData> toParamMetaData (juce::XmlElement* parameterEl)
+{
+    // parse parameter metadata
+    const auto paramData = make_shared<ParamMetaData>();
+
+    paramData->name = parameterEl->getStringAttribute ("name");
+    paramData->label = parameterEl->getStringAttribute ("label");
+    paramData->defaultValue = static_cast<float> (parameterEl->getDoubleAttribute ("default", 0.0));
+    paramData->isDiscrete = parameterEl->getBoolAttribute ("discrete", false);
+
+    if (paramData->isDiscrete)
+    {
+        paramData->isBoolean = parameterEl->getBoolAttribute ("isbutton", false);
+        auto choiceEls = parameterEl->getChildByName ("choices");
+        if (choiceEls)
+        {
+            paramData->choices = make_shared<Choices>();
+            for (int c = 0; c < choiceEls->getNumChildElements(); c++)
+            {
+                auto choiceEl = choiceEls->getChildElement (c);
+                auto choice = make_shared<ParamChoice>();
+                choice->label = choiceEl->getStringAttribute ("label");
+                choice->value = static_cast<float> (choiceEl->getDoubleAttribute ("value", 0.0));
+                paramData->choices->push_back (choice);
+            }
+        }
+    }
+    else
+    {
+        paramData->startValue = static_cast<float> (parameterEl->getDoubleAttribute ("startValue", 0.0));
+        paramData->endValue = static_cast<float> (parameterEl->getDoubleAttribute ("endValue", 0.0));
+        paramData->startLabel = parameterEl->getStringAttribute ("startLabel");
+        paramData->endLabel = parameterEl->getStringAttribute ("endLabel");
+        paramData->unit = parameterEl->getStringAttribute ("unit");
+        paramData->isInt = parameterEl->getBoolAttribute ("isInt", false);
+    }
+
+    // logToFile (paramData.get());
+
+    return paramData;
 }
 
 void logToFile (ParamMetaData* data)

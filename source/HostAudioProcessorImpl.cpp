@@ -4,7 +4,7 @@
 #include "MidiTools.h"
 #include "NRPNReceiver.h"
 #include "ParameterChangeListener.h"
-#include "ParameterHeuristics.h"
+#include "ParamMetaData.h"
 #include "juce_audio_devices/juce_audio_devices.h"
 #include "juce_audio_processors/juce_audio_processors.h"
 #include "juce_core/juce_core.h"
@@ -56,44 +56,12 @@ HostAudioProcessorImpl::HostAudioProcessorImpl()
 
         for (int i = 0; i < parametersEl->getNumChildElements(); i++)
         {
+            // parse parameter data from xml
             auto parameterEl = parametersEl->getChildElement (i);
-
-            // parse parameter metadata
-            const auto paramData = make_shared<ParamMetaData>();
-
-            paramData->name = parameterEl->getStringAttribute ("name");
-            paramData->label = parameterEl->getStringAttribute ("label");
-            paramData->defaultValue = static_cast<float> (parameterEl->getDoubleAttribute ("default", 0.0));
-            paramData->isDiscrete = parameterEl->getBoolAttribute ("discrete", false);
-
-            if (paramData->isDiscrete)
-            {
-                paramData->isBoolean = parameterEl->getBoolAttribute("isbutton", false);
-                auto choiceEls = parameterEl->getChildByName ("choices");
-                if (choiceEls)
-                {
-                    paramData->choices = make_shared<Choices>();
-                    for (int c = 0; c < choiceEls->getNumChildElements(); c++)
-                    {
-                        auto choiceEl = choiceEls->getChildElement (c);
-                        auto choice = make_shared<ParamChoice>();
-                        choice->label = choiceEl->getStringAttribute ("label");
-                        choice->value = static_cast<float> (choiceEl->getDoubleAttribute ("value", 0.0));
-                        paramData->choices->push_back(choice);
-                    }
-                }
-            }
-            else
-            {
-                paramData->startValue = static_cast<float> (parameterEl->getDoubleAttribute ("startValue", 0.0));
-                paramData->endValue = static_cast<float> (parameterEl->getDoubleAttribute ("endValue", 0.0));
-                paramData->startLabel = parameterEl->getStringAttribute ("startLabel");
-                paramData->endLabel = parameterEl->getStringAttribute ("endLabel");
-                paramData->unit = parameterEl->getStringAttribute ("unit");
-                paramData->isInt = parameterEl->getBoolAttribute ("isInt", false);
-            }
-
+            auto paramData = toParamMetaData(parameterEl);
+            logToFile("Parameter metadata:");
             logToFile(paramData.get());
+            paramsMetaData->push_back (paramData);
             
             // create parameter
             auto param = new juce::AudioParameterFloat (i, paramData->name, juce::NormalisableRange<float> (static_cast<float> (0), static_cast<float> (1)), static_cast<float> (paramData->defaultValue));
@@ -120,7 +88,6 @@ HostAudioProcessorImpl::HostAudioProcessorImpl()
 
             param->addListener (newListener);
             addParameter (param);
-            paramsMetaData->push_back (paramData);
         }
     }
 
@@ -170,40 +137,9 @@ void HostAudioProcessorImpl::releaseResources()
             for (int i = 0; i < params.size(); i++)
             {
                 auto param = params[i];
-                auto paramData = make_shared<ParamMetaData>();
-                analyseParameter (param, paramData.get());
-
-                auto paramEl = new juce::XmlElement ("param");
-                paramEl->setAttribute ("name", paramData->name);
-                paramEl->setAttribute ("label", paramData->label);
-                paramEl->setAttribute ("default", paramData->defaultValue);
-                paramEl->setAttribute ("discrete", paramData->isDiscrete);
-                if (paramData->isDiscrete)
-                {
-                    paramEl->setAttribute ("isbutton", paramData->isBoolean);
-                    auto choices = new juce::XmlElement ("choices");
-                    for (auto choice : *(paramData->choices))
-                    {
-                        auto choiceEl = new juce::XmlElement ("choice");
-                        choiceEl->setAttribute ("label", choice->label);
-                        choiceEl->setAttribute ("value", choice->value);
-                        choices->addChildElement (choiceEl);
-                    }
-                    paramEl->addChildElement (choices);
-                }
-                else
-                {
-                    paramEl->setAttribute ("startValue", paramData->startValue);
-                    paramEl->setAttribute ("startLabel", paramData->startLabel);
-                    paramEl->setAttribute ("endValue", paramData->endValue);
-                    paramEl->setAttribute ("endLabel", paramData->endLabel);
-                    paramEl->setAttribute ("unit", paramData->unit);
-                    paramEl->setAttribute ("isInt", paramData->isInt);
-                }
-
+                auto paramData = analyseParameter (param);
+                auto paramEl = toParamDataXML(paramData);
                 paramsEl->addChildElement (paramEl);
-
-                // logToFile (paramData.get());
             }
 
             settings->setValue ("params", paramsEl);
