@@ -8,14 +8,14 @@
 #include "juce_audio_devices/juce_audio_devices.h"
 #include "juce_audio_processors/juce_audio_processors.h"
 #include "juce_core/juce_core.h"
-#include <memory>
 #include "std_include.h"
+#include <memory>
 
 HostAudioProcessorImpl::HostAudioProcessorImpl()
     : AudioProcessor (BusesProperties().withInput ("Input", juce::AudioChannelSet::stereo(), true).withOutput ("Output", juce::AudioChannelSet::stereo(), true))
 {
     clearLogFile();
-    
+
     deviceManager.initialise (2, 2, nullptr, true);
 
     appProperties.setStorageParameters ([&] {
@@ -134,43 +134,39 @@ void HostAudioProcessorImpl::releaseResources()
             for (int i = 0; i < params.size(); i++)
             {
                 auto param = params[i];
+                auto paramData = make_shared<ParamMetaData>();
+                analyseParameter (param, paramData.get());
 
-                // logToFile("param: " + param->getName(256));
                 auto paramEl = new juce::XmlElement ("param");
-                paramEl->setAttribute ("name", param->getName (128));
-                paramEl->setAttribute ("label", param->getLabel());
-                paramEl->setAttribute ("default", param->getDefaultValue());
-                paramEl->setAttribute ("steps", param->getNumSteps());
+                paramEl->setAttribute ("name", paramData->name);
+                paramEl->setAttribute ("label", paramData->label);
+                paramEl->setAttribute ("default", paramData->defaultValue);
+                paramEl->setAttribute ("discrete", paramData->isDiscrete);
+                if(paramData->isDiscrete) 
+                {
+                    auto choices = new juce::XmlElement("choices");
+                    choices->setAttribute("isbutton", paramData->isBoolean);
+                    for(auto choice : *(paramData->choices)) {
+                        auto choiceEl = new juce::XmlElement("choice");
+                        choiceEl->setAttribute("label", choice->label);
+                        choiceEl->setAttribute("value", choice->value);
+                        choices->addChildElement(choiceEl);
+                    }
+                    paramEl->addChildElement(choices);
+                }
+                else
+                {
+                    paramEl->setAttribute ("startValue", paramData->startValue);                    
+                    paramEl->setAttribute ("startLabel", paramData->startLabel);                    
+                    paramEl->setAttribute ("endValue", paramData->endValue);                    
+                    paramEl->setAttribute ("endLabel", paramData->endLabel);                    
+                    paramEl->setAttribute ("unit", paramData->unit);
+                    paramEl->setAttribute ("isInt", paramData->isInt);
+                }
 
-                // auto choices = param->getAllValueStrings();
-                // for (auto choice : choices)
-                // {
-                //     logToFile ("found choice " + choice);
-                // }
-
-                // if (auto* choiceParam = dynamic_cast<juce::AudioProcessorParameterWithID*> (param))
-                // {
-                //     logToFile ("adding choices");
-                //     // auto choicesEl = new juce::XmlElement ("choices");
-                //     // for (auto choice : choiceParam->choices)
-                //     // {
-                //     //     auto choiceEl = new juce::XmlElement ("choice");
-                //     //     choiceEl->setText (choice);
-                //     //     choicesEl->addChildElement (choiceEl);
-                //     // }
-                //     // paramEl->addChildElement (choicesEl);
-                // }
                 paramsEl->addChildElement (paramEl);
 
-                // auto* vst3Param = dynamic_cast<Steinberg::Vst::ParameterInfo*>(param);
-                // if (vst3Param == nullptr)
-                // {
-                //     logToFile("Failed to cast to VST3 parameter");
-                // }
-
-                auto paramData = make_shared<ParamMetaData>();
-                analyseParameter(param, paramData.get());
-                logToFile(paramData.get());
+                logToFile (paramData.get());
             }
 
             settings->setValue ("params", paramsEl);

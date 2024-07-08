@@ -31,8 +31,8 @@ void analyseParameter (juce::AudioProcessorParameter* param, ParamMetaData* data
         auto lastData = analyseParamLabel (last->label);
 
         data->unit = firstData->unit;
-        data->start = firstData->value;
-        data->end = lastData->value;
+        data->startValue = firstData->value;
+        data->endValue = lastData->value;
         data->isInt = lastData->isInt;
     }
 }
@@ -146,8 +146,8 @@ void logToFile (ParamMetaData* data)
     {
         logToFile (" - continuous");
         logToFile (" - isInt: " + static_cast<String> (data->isInt ? "true" : "false"));
-        logToFile (" - start: " + static_cast<String> (data->start));
-        logToFile (" - end  : " + static_cast<String> (data->end));
+        logToFile (" - start: " + static_cast<String> (data->startValue));
+        logToFile (" - end  : " + static_cast<String> (data->endValue));
         logToFile (" - unit: " + data->unit);
     }
     logToFile ("");

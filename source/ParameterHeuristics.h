@@ -23,13 +23,15 @@ using Choices = vector<shared_ptr<ParamChoice>>;
 struct ParamMetaData
 {
     String name = "";
+    String label = "";
     bool isDiscrete = false;
     bool isBoolean = false;
     bool isInt = false;
     String startLabel = "";
     String endLabel = "";
-    float start = 0;
-    float end = 0;
+    float startValue = 0;
+    float endValue = 0;
+    float defaultValue = 0;
     String unit = "";
     shared_ptr<Choices> choices;
 };
