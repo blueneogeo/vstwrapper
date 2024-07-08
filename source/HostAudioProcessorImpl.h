@@ -2,6 +2,7 @@
 
 #include "EditorTools.h"
 #include "NRPNReceiver.h"
+#include "ParameterHeuristics.h"
 #include "juce_core/juce_core.h"
 #include "juce_data_structures/juce_data_structures.h"
 #include "juce_events/juce_events.h"
@@ -142,6 +143,7 @@ private:
     bool active = false;
     juce::ScopedMessageBox messageBox;
     // PluginEditorComponent pluginEditor;
+    unique_ptr<vector<shared_ptr<ParamMetaData>>> paramsMetaData;
 
     static constexpr const char* innerStateTag = "inner_state";
     static constexpr const char* editorStyleTag = "editor_style";

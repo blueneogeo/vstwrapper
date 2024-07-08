@@ -52,16 +52,51 @@ HostAudioProcessorImpl::HostAudioProcessorImpl()
     // load the parameters from the config if available
     if (auto parametersEl = appProperties.getUserSettings()->getXmlValue ("params"))
     {
+        paramsMetaData = make_unique<vector<shared_ptr<ParamMetaData>>>();
+
         for (int i = 0; i < parametersEl->getNumChildElements(); i++)
         {
             auto parameterEl = parametersEl->getChildElement (i);
-            auto name = parameterEl->getStringAttribute ("name");
-            auto label = parameterEl->getStringAttribute ("label");
-            // auto min = parameterEl->getDoubleAttribute("min");
-            // auto max = parameterEl->getDoubleAttribute("max");
-            auto def = parameterEl->getDoubleAttribute ("default");
 
-            auto param = new juce::AudioParameterFloat (i, name, juce::NormalisableRange<float> (static_cast<float> (0), static_cast<float> (1)), static_cast<float> (def));
+            // parse parameter metadata
+            const auto paramData = make_shared<ParamMetaData>();
+
+            paramData->name = parameterEl->getStringAttribute ("name");
+            paramData->label = parameterEl->getStringAttribute ("label");
+            paramData->defaultValue = static_cast<float> (parameterEl->getDoubleAttribute ("default", 0.0));
+            paramData->isDiscrete = parameterEl->getBoolAttribute ("discrete", false);
+
+            if (paramData->isDiscrete)
+            {
+                paramData->isBoolean = parameterEl->getBoolAttribute("isbutton", false);
+                auto choiceEls = parameterEl->getChildByName ("choices");
+                if (choiceEls)
+                {
+                    paramData->choices = make_shared<Choices>();
+                    for (int c = 0; c < choiceEls->getNumChildElements(); c++)
+                    {
+                        auto choiceEl = choiceEls->getChildElement (c);
+                        auto choice = make_shared<ParamChoice>();
+                        choice->label = choiceEl->getStringAttribute ("label");
+                        choice->value = static_cast<float> (choiceEl->getDoubleAttribute ("value", 0.0));
+                        paramData->choices->push_back(choice);
+                    }
+                }
+            }
+            else
+            {
+                paramData->startValue = static_cast<float> (parameterEl->getDoubleAttribute ("startValue", 0.0));
+                paramData->endValue = static_cast<float> (parameterEl->getDoubleAttribute ("endValue", 0.0));
+                paramData->startLabel = parameterEl->getStringAttribute ("startLabel");
+                paramData->endLabel = parameterEl->getStringAttribute ("endLabel");
+                paramData->unit = parameterEl->getStringAttribute ("unit");
+                paramData->isInt = parameterEl->getBoolAttribute ("isInt", false);
+            }
+
+            logToFile(paramData.get());
+            
+            // create parameter
+            auto param = new juce::AudioParameterFloat (i, paramData->name, juce::NormalisableRange<float> (static_cast<float> (0), static_cast<float> (1)), static_cast<float> (paramData->defaultValue));
 
             // inform the wrapped plugin of external changes coming from the VST host
             auto newListener = new ParameterChangeListener (
@@ -85,6 +120,7 @@ HostAudioProcessorImpl::HostAudioProcessorImpl()
 
             param->addListener (newListener);
             addParameter (param);
+            paramsMetaData->push_back (paramData);
         }
     }
 
@@ -142,31 +178,32 @@ void HostAudioProcessorImpl::releaseResources()
                 paramEl->setAttribute ("label", paramData->label);
                 paramEl->setAttribute ("default", paramData->defaultValue);
                 paramEl->setAttribute ("discrete", paramData->isDiscrete);
-                if(paramData->isDiscrete) 
+                if (paramData->isDiscrete)
                 {
-                    auto choices = new juce::XmlElement("choices");
-                    choices->setAttribute("isbutton", paramData->isBoolean);
-                    for(auto choice : *(paramData->choices)) {
-                        auto choiceEl = new juce::XmlElement("choice");
-                        choiceEl->setAttribute("label", choice->label);
-                        choiceEl->setAttribute("value", choice->value);
-                        choices->addChildElement(choiceEl);
+                    paramEl->setAttribute ("isbutton", paramData->isBoolean);
+                    auto choices = new juce::XmlElement ("choices");
+                    for (auto choice : *(paramData->choices))
+                    {
+                        auto choiceEl = new juce::XmlElement ("choice");
+                        choiceEl->setAttribute ("label", choice->label);
+                        choiceEl->setAttribute ("value", choice->value);
+                        choices->addChildElement (choiceEl);
                     }
-                    paramEl->addChildElement(choices);
+                    paramEl->addChildElement (choices);
                 }
                 else
                 {
-                    paramEl->setAttribute ("startValue", paramData->startValue);                    
-                    paramEl->setAttribute ("startLabel", paramData->startLabel);                    
-                    paramEl->setAttribute ("endValue", paramData->endValue);                    
-                    paramEl->setAttribute ("endLabel", paramData->endLabel);                    
+                    paramEl->setAttribute ("startValue", paramData->startValue);
+                    paramEl->setAttribute ("startLabel", paramData->startLabel);
+                    paramEl->setAttribute ("endValue", paramData->endValue);
+                    paramEl->setAttribute ("endLabel", paramData->endLabel);
                     paramEl->setAttribute ("unit", paramData->unit);
                     paramEl->setAttribute ("isInt", paramData->isInt);
                 }
 
                 paramsEl->addChildElement (paramEl);
 
-                logToFile (paramData.get());
+                // logToFile (paramData.get());
             }
 
             settings->setValue ("params", paramsEl);

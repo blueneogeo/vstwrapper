@@ -4,14 +4,13 @@
 
 void analyseParameter (juce::AudioProcessorParameter* param, ParamMetaData* data)
 {
-    data->name = param->getName (256);
-
     size_t MAX_OPTIONS = 220;
+
+    data->name = param->getName (256);
 
     auto choices = findChoices (param, MAX_OPTIONS);
 
     data->isBoolean = choices->size() == 2;
-
     data->isDiscrete = choices->size() < MAX_OPTIONS;
 
     if (data->isDiscrete)
