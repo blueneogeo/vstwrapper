@@ -115,6 +115,7 @@ public:
     std::function<void()> pluginChanged;
 
     juce::Array<juce::AudioProcessorParameter*> pluginParams;
+    unique_ptr<vector<shared_ptr<ParamMetaData>>> paramsMetaData;
 
     juce::String midiInputDeviceID = "";
     juce::String midiOutputDeviceID = "";
@@ -139,7 +140,6 @@ private:
     bool active = false;
     juce::ScopedMessageBox messageBox;
     // PluginEditorComponent pluginEditor;
-    unique_ptr<vector<shared_ptr<ParamMetaData>>> paramsMetaData;
 
     static constexpr const char* innerStateTag = "inner_state";
     static constexpr const char* editorStyleTag = "editor_style";

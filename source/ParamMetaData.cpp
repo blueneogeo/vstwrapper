@@ -162,8 +162,6 @@ juce::XmlElement* toParamDataXML (shared_ptr<ParamMetaData> paramData)
         paramEl->setAttribute ("isInt", paramData->isInt);
     }
 
-    logToFile(paramEl->getStringAttribute("name"));
-    
     return paramEl;
 }
 

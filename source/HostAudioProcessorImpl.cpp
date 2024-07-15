@@ -3,8 +3,8 @@
 #include "EventBus.h"
 #include "MidiTools.h"
 #include "NRPNReceiver.h"
-#include "ParameterChangeListener.h"
 #include "ParamMetaData.h"
+#include "ParameterChangeListener.h"
 #include "juce_audio_devices/juce_audio_devices.h"
 #include "juce_audio_processors/juce_audio_processors.h"
 #include "juce_core/juce_core.h"
@@ -58,11 +58,14 @@ HostAudioProcessorImpl::HostAudioProcessorImpl()
         {
             // parse parameter data from xml
             auto parameterEl = parametersEl->getChildElement (i);
-            auto paramData = toParamMetaData(parameterEl);
-            logToFile("Parameter metadata:");
-            logToFile(paramData.get());
+            auto paramData = toParamMetaData (parameterEl);
+            if (DEBUG)
+            {
+                logToFile ("Parameter metadata:");
+                logToFile (paramData.get());
+            }
             paramsMetaData->push_back (paramData);
-            
+
             // create parameter
             auto param = new juce::AudioParameterFloat (i, paramData->name, juce::NormalisableRange<float> (static_cast<float> (0), static_cast<float> (1)), static_cast<float> (paramData->defaultValue));
 
@@ -138,7 +141,7 @@ void HostAudioProcessorImpl::releaseResources()
             {
                 auto param = params[i];
                 auto paramData = analyseParameter (param);
-                auto paramEl = toParamDataXML(paramData);
+                auto paramEl = toParamDataXML (paramData);
                 paramsEl->addChildElement (paramEl);
             }
 
@@ -259,30 +262,6 @@ void HostAudioProcessorImpl::setStateInformation (const void* data, int sizeInBy
         // Restore Electra/MIDI connection settings
         if (auto midiNode = xml->getChildByName ("midi"))
         {
-            // auto in = midiNode->getStringAttribute ("in");
-            // logToFile ("input >" + in + "<");
-            // if (in.isNotEmpty())
-            // {
-            //     logToFile ("input not empty, setting");
-            //     setMidiInput (in);
-            // }
-            // else
-            // {
-            //     logToFile ("midi in not set");
-            // }
-
-            // auto out = midiNode->getStringAttribute ("out");
-            // logToFile ("output >" + out + "<");
-            // if (out.isNotEmpty())
-            // {
-            //     logToFile ("output not empty, setting");
-            //     setMidiOutput (out);
-            // }
-            // else
-            // {
-            //     logToFile ("midi out not set");
-            // }
-
             auto channel = midiNode->getIntAttribute ("channel");
             if (channel > 0)
             {
@@ -324,6 +303,9 @@ void HostAudioProcessorImpl::clearMidiOutput()
 
 void HostAudioProcessorImpl::setMidiInput (juce::String deviceID, int channel, int slot)
 {
+    if (deviceID.isEmpty())
+        return;
+
     logToFile ("setting midi input to " + deviceID);
 
     clearMidiInput();
@@ -397,6 +379,8 @@ void HostAudioProcessorImpl::setNewPlugin (const juce::PluginDescription& pd, Ed
         // In any case, it is essential that the inner plugin is told about the bus
         // configuration that will be used. The AudioBuffer passed to the inner plugin must also
         // exactly match this layout.
+
+        // TODO: make this more robust
         if (auto* bus = inner->getBus (true, 0))
         {
             bus->setCurrentLayout (this->getChannelLayoutOfBus (true, 0));
